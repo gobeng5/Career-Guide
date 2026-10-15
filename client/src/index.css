@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply text-slate-100 antialiased selection:bg-blue-600 selection:text-white transition-colors duration-200;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Deep Sapphire Blue Canvas for Dark Mode */
+    background-color: #061124;
+    background-image: 
+      radial-gradient(at 10% 10%, rgba(37, 99, 235, 0.18) 0px, transparent 55%),
+      radial-gradient(at 90% 15%, rgba(14, 165, 233, 0.16) 0px, transparent 50%),
+      radial-gradient(at 50% 60%, rgba(2, 132, 199, 0.12) 0px, transparent 60%),
+      radial-gradient(at 80% 90%, rgba(59, 130, 246, 0.14) 0px, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+/* Glass & Glow Panels (Dark Deep Sapphire Blue) */
+.glass-card {
+  background: linear-gradient(135deg, rgba(10, 26, 52, 0.85) 0%, rgba(13, 34, 68, 0.7) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  box-shadow: 0 20px 40px -15px rgba(3, 10, 24, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.glass-card-interactive {
+  background: linear-gradient(135deg, rgba(10, 28, 56, 0.9) 0%, rgba(14, 38, 76, 0.75) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  box-shadow: 0 10px 30px -10px rgba(3, 10, 24, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-interactive:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.glow-blue {
+  box-shadow: 0 0 35px -5px rgba(37, 99, 235, 0.4);
+}
+
+.glow-sky {
+  box-shadow: 0 0 35px -5px rgba(14, 165, 233, 0.4);
+}
+
+/* ========================================================= */
+/* LIGHT MODE STYLES & OVERRIDES (Crisp White & Blue Shades) */
+/* ========================================================= */
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #ffffff;
+  color: #0f2744;
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(219, 234, 254, 0.6) 0px, transparent 55%),
+    radial-gradient(at 90% 15%, rgba(224, 242, 254, 0.5) 0px, transparent 50%),
+    radial-gradient(at 50% 60%, rgba(239, 246, 255, 0.7) 0px, transparent 60%),
+    radial-gradient(at 80% 90%, rgba(219, 234, 254, 0.5) 0px, transparent 50%);
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #dbeafe;
+  box-shadow: 0 15px 35px -10px rgba(37, 99, 235, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+html.light .glass-card-interactive {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  box-shadow: 0 8px 24px -5px rgba(37, 99, 235, 0.06);
+}
+
+html.light .glass-card-interactive:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 12px 30px -5px rgba(37, 99, 235, 0.15);
+}
+
+html.light header {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-bottom-color: #dbeafe !important;
+  box-shadow: 0 4px 20px -3px rgba(37, 99, 235, 0.06);
+}
+
+html.light aside {
+  background-color: #ffffff !important;
+  border-right-color: #dbeafe !important;
+  box-shadow: 5px 0 30px -5px rgba(37, 99, 235, 0.08);
+}
+
+html.light .bg-slate-950,
+html.light .bg-slate-900 {
+  background-color: #f8fbff !important;
+}
+
+html.light .border-slate-800,
+html.light .border-slate-700 {
+  border-color: #dbeafe !important;
+}
+
+html.light .text-white {
+  color: #0f2744 !important;
+}
+
+html.light .text-slate-100 {
+  color: #1e3a5f !important;
+}
+
+html.light .text-slate-200 {
+  color: #24426b !important;
+}
+
+html.light .text-slate-300 {
+  color: #335380 !important;
+}
+
+html.light .text-slate-400 {
+  color: #4b6b96 !important;
+}
+
+html.light pre,
+html.light textarea {
+  background-color: #f8fbff !important;
+  color: #0f2744 !important;
+  border-color: #bfdbfe !important;
+}
+
+html.light select,
+html.light input[type="text"],
+html.light input[type="email"],
+html.light input[type="password"] {
+  background-color: #ffffff !important;
+  color: #0f2744 !important;
+  border-color: #bfdbfe !important;
+}
+
+html.light footer {
+  background-color: #f8fbff !important;
+  border-top-color: #dbeafe !important;
+  color: #4b6b96 !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* Custom scrollbars in blue shade */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(6, 17, 36, 0.8);
+}
+html.light ::-webkit-scrollbar-track {
+  background: #f0f7ff;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.45);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(29, 78, 216, 0.75);
+}
