@@ -1,8 +1,12 @@
 import mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
 
+// Loaded lazily so a PDF library failure can't crash every API route on startup.
+// pdf-parse/worker statically imports @napi-rs/canvas, which pdfjs needs in Node and
+// which Vercel's bundler would otherwise miss; it must load before pdf-parse itself.
 async function pdfParse(fileBuffer) {
-  const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
+  const { CanvasFactory } = await import('pdf-parse/worker');
+  const { PDFParse } = await import('pdf-parse');
+  const parser = new PDFParse({ data: new Uint8Array(fileBuffer), CanvasFactory });
   try {
     return await parser.getText({ pageJoiner: '' });
   } finally {
