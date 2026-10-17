@@ -1,19 +1,5 @@
 import { useState } from 'react';
-import {
-  Zap,
-  Lock,
-  Mail,
-  User,
-  Eye,
-  EyeOff,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Target,
-  FileCheck,
-  Loader2,
-  AlertCircle
-} from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher';
 
@@ -52,12 +38,12 @@ export const LoginPage = ({
     setErrorMessage(null);
 
     if (!email.trim() || !password.trim()) {
-      setErrorMessage('Please enter both email and password.');
+      setErrorMessage('Enter your email and password.');
       return;
     }
 
     if (isRegister && !name.trim()) {
-      setErrorMessage('Please enter your full name.');
+      setErrorMessage('Enter your full name.');
       return;
     }
 
@@ -76,7 +62,7 @@ export const LoginPage = ({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed.');
+        throw new Error(data.error || 'Sign in failed. Check your email and password.');
       }
 
       if (rememberMe) {
@@ -85,7 +71,7 @@ export const LoginPage = ({
 
       onLoginSuccess(data.user);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error communicating with server.');
+      setErrorMessage(err.message || 'Could not reach the server. Check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -131,302 +117,148 @@ export const LoginPage = ({
     }
   };
 
+  const switchMode = () => {
+    setIsRegister(!isRegister);
+    setErrorMessage(null);
+  };
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white relative overflow-hidden">
-      {/* Background ambient orbs in blue shades */}
-      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-blue-600/15 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-sky-500/15 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen flex flex-col">
+      <header className="h-14 w-full max-w-5xl mx-auto px-5 sm:px-8 flex items-center justify-between">
+        <span className="font-serif text-[19px] font-semibold tracking-tight text-ink">Career Guide</span>
+        {themeMode && onThemeChange && <ThemeSwitcher themeMode={themeMode} onThemeChange={onThemeChange} />}
+      </header>
 
-      {/* Theme Switcher Button */}
-      {themeMode && onThemeChange && (
-        <div className="absolute top-4 right-4 z-30">
-          <ThemeSwitcher themeMode={themeMode} onThemeChange={onThemeChange} />
-        </div>
-      )}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-5 sm:px-8 py-8 lg:py-16 grid lg:grid-cols-[1fr_400px] gap-12 lg:gap-20 items-start">
+        <section className="order-2 lg:order-1 lg:pt-6">
+          <h1 className="text-[28px] sm:text-[34px] leading-[1.15] font-semibold tracking-tight text-ink max-w-md text-balance">
+            Show employers what you achieved, not just what you did.
+          </h1>
+          <p className="mt-4 text-[15px] text-muted leading-relaxed max-w-md">
+            Score your resume bullet by bullet, tailor it to a job posting, and write the cover letter that goes with
+            it.
+          </p>
 
-      {/* Main Container Card */}
-      <div className="w-full max-w-5xl glass-card rounded-3xl shadow-2xl border border-blue-900/40 overflow-hidden grid grid-cols-1 lg:grid-cols-12 relative z-10 animate-fadeIn">
-        {/* Left Side: Product Showcase & Value Proposition */}
-        <div className="lg:col-span-5 p-8 sm:p-10 bg-gradient-to-br from-blue-950/80 via-slate-950/90 to-sky-950/50 border-b lg:border-b-0 lg:border-r border-blue-900/30 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute -top-24 -left-24 w-60 h-60 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div>
-            {/* Logo */}
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-500 flex items-center justify-center text-white shadow-xl shadow-blue-500/30 ring-1 ring-white/20">
-                <Zap className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl font-black tracking-tight text-white">Career Guide</span>
-                </div>
-                <p className="text-xs text-blue-300/80 font-medium">Google XYZ Resume Suite</p>
-              </div>
-            </div>
-
-            {/* Headline */}
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug mb-4">
-              Turn Accomplishments into Job Offers.
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-8">
-              Score resumes with Google's proven <span className="text-sky-400 font-bold">Accomplished [X] as measured by [Y], by doing [Z]</span> formula, tailor for ATS match, and bypass AI detection.
+          <figure className="paper !mx-0 !p-7 sm:!p-9 mt-10 max-w-md !text-[14.5px]">
+            <p className="font-sans text-xs font-medium text-[#a8372f] mb-1.5">Before</p>
+            <p className="text-[#566170]">Responsible for improving the checkout page.</p>
+            <hr className="my-5 border-[#e3e6ea]" />
+            <p className="font-sans text-xs font-medium text-[#1d7449] mb-1.5">After</p>
+            <p>
+              Raised checkout completion by 18%, measured across 40,000 monthly orders, by redesigning the payment
+              flow in React.
             </p>
+          </figure>
+        </section>
 
-            {/* Feature Highlights */}
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 ring-1 ring-blue-500/30">
-                  <Target className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Google XYZ Resume Scoring</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Evaluates action verbs, quantifiable metrics, and tools.
-                  </p>
-                </div>
-              </div>
+        <section className="order-1 lg:order-2 panel p-6 sm:p-8">
+          <h2 className="text-xl font-semibold text-ink">{isRegister ? 'Create an account' : 'Sign in'}</h2>
+          <p className="text-[13.5px] text-muted mt-1">
+            {isRegister ? 'Keep your resumes, scores and letters in one place.' : 'Welcome back.'}
+          </p>
 
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 ring-1 ring-sky-500/30">
-                  <FileCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Targeted Job Match Rewriter</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Boosts ATS keywords and reforms bullets for target roles.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-600/20 text-blue-300 flex items-center justify-center shrink-0 ring-1 ring-blue-500/30">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-white">Deep AI Humanizer</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    Removes robotic AI clichés and injects human burstiness.
-                  </p>
-                </div>
-              </div>
+          {errorMessage && (
+            <div role="alert" className="mt-5 p-3 rounded-md bg-bad-soft text-bad text-[13px]">
+              {errorMessage}
             </div>
-          </div>
+          )}
 
-          {/* User Testimonial Pill */}
-          <div className="mt-8 pt-6 border-t border-blue-900/30">
-            <div className="p-3.5 rounded-2xl bg-blue-950/60 border border-blue-800/40 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-sky-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                AR
-              </div>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            {isRegister && (
               <div>
-                <p className="text-[11px] text-slate-200 font-medium italic">
-                  "Jumped my ATS score from 41% to 96% and landed 4 interviews."
-                </p>
-                <span className="text-[10px] text-sky-400 font-semibold block mt-0.5">
-                  Alex Rivera &bull; Senior Software Engineer
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Interactive Login / Register Form */}
-        <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center bg-slate-950/40">
-          <div className="max-w-md w-full mx-auto">
-            {/* Header / Mode Switcher */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-2xl font-black text-white tracking-tight">
-                  {isRegister ? 'Create an Account' : 'Welcome Back'}
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  {isRegister
-                    ? 'Join Career Guide to accelerate your career search'
-                    : 'Sign in to access your resumes, scoring reports & letters'}
-                </p>
-              </div>
-
-              <div className="flex bg-blue-950/50 p-1 rounded-2xl border border-blue-800/40 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRegister(false);
-                    setErrorMessage(null);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                    !isRegister
-                      ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRegister(true);
-                    setErrorMessage(null);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                    isRegister
-                      ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Register
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Demo 1-Click Login Banner */}
-            {!isRegister && (
-              <div className="mb-6 p-3.5 rounded-2xl bg-blue-950/50 border border-blue-500/30 flex items-center justify-between gap-3 shadow-md">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-4 h-4 text-sky-400" />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-white block">Instant Demo Access</span>
-                    <span className="text-[10px] text-blue-300">Test all features with 1-click login</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleDemoLogin}
-                  disabled={isLoading}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30 transition cursor-pointer active:scale-95 whitespace-nowrap"
-                >
-                  Demo Login
-                </button>
+                <label htmlFor="name" className="label">
+                  Full name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="field"
+                />
               </div>
             )}
 
-            {/* Error Banner */}
-            {errorMessage && (
-              <div className="mb-5 p-3.5 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-xs text-rose-300 flex items-center gap-2 animate-fadeIn">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {isRegister && (
-                <div>
-                  <label className="text-xs font-bold text-slate-200 block mb-1.5 uppercase tracking-wider">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Alex Rivera"
-                      className="w-full bg-slate-950/90 border border-blue-900/40 focus:border-blue-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition shadow-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="text-xs font-bold text-slate-200 block mb-1.5 uppercase tracking-wider">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full bg-slate-950/90 border border-blue-900/40 focus:border-blue-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition shadow-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                    Password
-                  </label>
-                  {!isRegister && (
-                    <button
-                      type="button"
-                      onClick={() => alert('Password reset link sent to demo email!')}
-                      className="text-[11px] text-sky-400 hover:text-sky-300 font-medium"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full bg-slate-950/90 border border-blue-900/40 focus:border-blue-500 rounded-xl pl-10 pr-10 py-2.5 text-xs text-slate-100 placeholder-slate-600 focus:outline-none transition shadow-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded bg-slate-950 border-blue-900 text-blue-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                  />
-                  <span>Remember me on this browser</span>
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 rounded-2xl font-bold text-xs bg-gradient-to-r from-blue-600 via-blue-500 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white shadow-xl shadow-blue-500/25 transition cursor-pointer flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Authenticating...
-                  </>
-                ) : (
-                  <>
-                    {isRegister ? 'Create Free Account' : 'Sign In to Workspace'}
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {/* Guest Access Link */}
-            <div className="mt-8 pt-6 border-t border-blue-900/30 text-center">
-              <button
-                type="button"
-                onClick={onContinueAsGuest}
-                className="text-xs text-slate-400 hover:text-blue-300 font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
-              >
-                <span>Skip for now, continue as Guest</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+            <div>
+              <label htmlFor="email" className="label">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                className="field"
+              />
             </div>
+
+            <div>
+              <label htmlFor="password" className="label">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="field !pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm !px-1.5 !h-7"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-[13px] text-muted select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 accent-[var(--color-accent)]"
+              />
+              Keep me signed in on this device
+            </label>
+
+            <button type="submit" disabled={isLoading} className="btn btn-primary w-full !h-10">
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isRegister ? 'Create account' : 'Sign in'}
+            </button>
+          </form>
+
+          {!isRegister && (
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={isLoading}
+              className="btn btn-secondary w-full !h-10 mt-3"
+            >
+              Use the demo account
+            </button>
+          )}
+
+          <div className="mt-6 pt-5 border-t border-line flex flex-wrap items-center justify-between gap-2 text-[13px]">
+            <button type="button" onClick={switchMode} className="text-accent font-medium hover:underline">
+              {isRegister ? 'I already have an account' : 'Create an account'}
+            </button>
+            <button type="button" onClick={onContinueAsGuest} className="text-muted hover:text-ink">
+              Continue without an account
+            </button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 };

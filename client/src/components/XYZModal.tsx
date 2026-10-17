@@ -1,4 +1,5 @@
-import { X, CheckCircle2, AlertTriangle, Sparkles, BookOpen } from 'lucide-react';
+import { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 interface XYZModalProps {
   isOpen: boolean;
@@ -6,105 +7,96 @@ interface XYZModalProps {
 }
 
 export const XYZModal = ({ isOpen, onClose }: XYZModalProps) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
+  const parts = [
+    {
+      key: 'X',
+      title: 'What you accomplished',
+      body: 'Open with a strong verb and the result, not the duty. "Cut", "launched" and "rebuilt" say more than "worked on" or "responsible for".'
+    },
+    {
+      key: 'Y',
+      title: 'How it was measured',
+      body: 'A number that proves the result: a percentage, money saved or earned, time reduced, or how many people it reached.'
+    },
+    {
+      key: 'Z',
+      title: 'How you did it',
+      body: 'The method or tools you used, specific enough that a reader in your field recognises the work.'
+    }
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
-            <BookOpen className="w-5 h-5" />
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="xyz-title"
+        onClick={(e) => e.stopPropagation()}
+        className="panel w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-line">
           <div>
-            <h2 className="text-xl font-bold text-white">Google's XYZ Resume Formula</h2>
-            <p className="text-xs text-slate-400">The gold standard framework used by top tech recruiters</p>
+            <h2 id="xyz-title" className="text-lg font-semibold text-ink">
+              How scoring works
+            </h2>
+            <p className="text-[13px] text-muted mt-0.5">
+              Each bullet is checked against the XYZ formula recruiters at Google recommend.
+            </p>
           </div>
+          <button onClick={onClose} className="btn btn-ghost btn-sm !px-1.5" aria-label="Close">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="bg-blue-950/40 border border-blue-500/30 rounded-xl p-4 mb-6">
-          <p className="text-sm font-semibold text-blue-300 mb-2">The Formula Structure:</p>
-          <div className="text-base text-slate-200 font-mono bg-slate-950/70 p-3 rounded-lg border border-slate-800">
-            Accomplished <span className="text-emerald-400 font-bold">[X]</span> as measured by <span className="text-amber-400 font-bold">[Y]</span>, by doing <span className="text-sky-400 font-bold">[Z]</span>
-          </div>
-        </div>
+        <div className="px-6 py-5 space-y-5">
+          <p className="font-serif text-[17px] leading-relaxed text-ink">
+            Accomplished <b>[X]</b> as measured by <b>[Y]</b>, by doing <b>[Z]</b>.
+          </p>
 
-        <div className="space-y-4 mb-6">
-          <div className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold shrink-0">
-              X
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-emerald-400">Accomplished [X] (Action & Outcome)</h4>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Start with a commanding action verb (e.g. Spearheaded, Engineered, Overhauled, Optimized). Clearly describe the specific result or business outcome achieved.
-              </p>
-            </div>
-          </div>
+          <dl className="space-y-3">
+            {parts.map((p) => (
+              <div key={p.key} className="flex gap-3">
+                <dt className="w-6 h-6 shrink-0 rounded bg-accent-soft text-accent text-xs font-semibold flex items-center justify-center">
+                  {p.key}
+                </dt>
+                <dd>
+                  <p className="text-[13.5px] font-medium text-ink">{p.title}</p>
+                  <p className="text-[13px] text-muted mt-0.5 leading-relaxed">{p.body}</p>
+                </dd>
+              </div>
+            ))}
+          </dl>
 
-          <div className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0">
-              Y
+          <div className="rounded-md border border-line divide-y divide-line text-[13.5px]">
+            <div className="p-3.5">
+              <p className="text-xs font-medium text-bad mb-1">Before</p>
+              <p className="text-muted">Worked on improving checkout page speed and helped customers buy items faster.</p>
             </div>
-            <div>
-              <h4 className="text-sm font-bold text-amber-400">Measured by [Y] (Quantifiable Metric)</h4>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Concrete numbers that substantiate your impact: percentages (35%), dollar amounts ($120k saved), latency reductions (from 400ms to 45ms), user scale (1.5M active users), or speed multipliers (3x).
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
-            <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold shrink-0">
-              Z
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-sky-400">By Doing [Z] (Methodology & Tools)</h4>
-              <p className="text-xs text-slate-300 mt-0.5">
-                The technical method, architecture, or tools you used (e.g., "by architecting a Redis caching layer", "by migrating monolithic microservices to Kubernetes").
+            <div className="p-3.5">
+              <p className="text-xs font-medium text-good mb-1">After</p>
+              <p className="text-ink">
+                Raised checkout completion, measured by a 32% drop in cart abandonment and $180k added revenue, by
+                refactoring React rendering and adding Redis session caching.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-slate-800 pt-4">
-          <h4 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" /> Real-World Transformation Example
-          </h4>
-          <div className="space-y-2">
-            <div className="p-3 bg-red-950/20 border border-red-900/30 rounded-lg text-xs">
-              <span className="text-red-400 font-bold flex items-center gap-1 mb-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Weak Generic Bullet:
-              </span>
-              <p className="text-slate-300">"Worked on improving website checkout page speed and helped customers buy items faster."</p>
-            </div>
-            <div className="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg text-xs">
-              <span className="text-emerald-400 font-bold flex items-center gap-1 mb-1">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Google XYZ Rewritten Bullet:
-              </span>
-              <p className="text-slate-200">
-                "<span className="text-emerald-300 font-medium">Accelerated checkout completion rates</span> as <span className="text-amber-300 font-medium">measured by a 32% drop in cart abandonment and $180k added revenue</span>, <span className="text-sky-300 font-medium">by refactoring React render trees and implementing Redis session caching</span>."
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl text-sm transition"
-          >
-            Got it, Let's Optimize!
+        <div className="px-6 py-4 border-t border-line flex justify-end">
+          <button onClick={onClose} className="btn btn-primary">
+            Close
           </button>
         </div>
       </div>
     </div>
   );
 };
-

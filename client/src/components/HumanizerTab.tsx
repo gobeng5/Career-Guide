@@ -1,19 +1,5 @@
 import { useState, useRef } from 'react';
-import {
-  Sparkles,
-  Upload,
-  Copy,
-  Check,
-  Download,
-  CheckCircle2,
-  FileText,
-  Loader2,
-  ShieldCheck,
-  Flame,
-  ArrowRight,
-  X,
-  Zap
-} from 'lucide-react';
+import { Upload, Copy, Check, Download, Loader2, X } from 'lucide-react';
 
 interface HumanizeStats {
   originalAiScore: number;
@@ -30,13 +16,23 @@ interface HumanizeResult {
   stats: HumanizeStats;
 }
 
+type Mode = 'professional' | 'conversational' | 'academic' | 'stealth';
+
+const MODES: { id: Mode; label: string }[] = [
+  { id: 'professional', label: 'Professional' },
+  { id: 'conversational', label: 'Conversational' },
+  { id: 'academic', label: 'Academic' },
+  { id: 'stealth', label: 'Heavy rewrite' }
+];
+
 export const HumanizerTab = () => {
   const [inputText, setInputText] = useState('');
-  const [mode, setMode] = useState<'professional' | 'conversational' | 'academic' | 'stealth'>('professional');
+  const [mode, setMode] = useState<Mode>('professional');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [result, setResult] = useState<HumanizeResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +42,7 @@ export const HumanizerTab = () => {
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     setIsUploading(true);
+    setError(null);
     setFileName(file.name);
 
     const formData = new FormData();
@@ -62,6 +59,8 @@ export const HumanizerTab = () => {
       setInputText(data.text);
     } catch (err) {
       console.error('File parsing error:', err);
+      setError('Could not read text from this file. Try a PDF, DOCX or TXT file, or paste the text.');
+      setFileName(null);
     } finally {
       setIsUploading(false);
     }
@@ -70,6 +69,7 @@ export const HumanizerTab = () => {
   const handleHumanize = async () => {
     if (!inputText.trim()) return;
     setIsProcessing(true);
+    setError(null);
 
     const apiKey = localStorage.getItem('deepseek_api_key') || '';
     const model = localStorage.getItem('deepseek_model') || 'deepseek-chat';
@@ -93,6 +93,7 @@ export const HumanizerTab = () => {
       setResult(data);
     } catch (err) {
       console.error('Humanize error:', err);
+      setError('The rewrite didn’t finish. Try again in a moment.');
     } finally {
       setIsProcessing(false);
     }
@@ -153,255 +154,153 @@ export const HumanizerTab = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/40 mb-2">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Deep AI Humanizer & Detector Bypass
+    <div className="space-y-6">
+      <section className="panel">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-line">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[13px] text-muted" id="mode-label">
+              Style
+            </span>
+            <div className="segmented" role="group" aria-labelledby="mode-label">
+              {MODES.map((m) => (
+                <button key={m.id} aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>
+                  {m.label}
+                </button>
+              ))}
             </div>
-            <h3 className="text-2xl font-black text-white tracking-tight">
-              Transform Robotic AI Text into Authentic Human Voice
-            </h3>
-            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-              Eliminates dead giveaways ("delve into", "testament to", "orchestrated", "seamlessly"), injects organic sentence burstiness, and re-balances cadence to pass AI detectors (GPTZero, Turnitin, Copyleaks).
-            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={loadSampleAiText} type="button" className="btn btn-ghost btn-sm">
+              Load example
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".pdf,.docx,.doc,.txt,.md"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="btn btn-secondary btn-sm"
+            >
+              {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {isUploading ? 'Reading file' : 'Upload file'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 md:divide-x divide-line">
+          <div className="p-5 sm:p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-2 min-h-[30px]">
+              <label htmlFor="humanize-input" className="text-[13.5px] font-medium text-ink">
+                Original
+              </label>
+              {fileName && (
+                <span className="chip chip-neutral">
+                  <span className="max-w-[160px] truncate">{fileName}</span>
+                  <button onClick={() => setFileName(null)} aria-label="Dismiss file name" className="hover:text-ink">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+            <textarea
+              id="humanize-input"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Paste the text you want to rewrite, or upload a file."
+              className="field h-80 resize-none leading-relaxed"
+            />
+            <div className="flex items-center justify-between text-xs text-subtle mt-2">
+              <span className="tabular-nums">{wordCount} words</span>
+              {inputText && (
+                <button
+                  onClick={() => {
+                    setInputText('');
+                    setFileName(null);
+                    setResult(null);
+                  }}
+                  className="hover:text-ink"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
-          <button
-            onClick={loadSampleAiText}
-            type="button"
-            className="text-xs font-bold px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 transition flex items-center gap-2 self-start md:self-auto cursor-pointer shadow-md active:scale-95"
-          >
-            <Sparkles className="w-4 h-4 text-blue-400" /> Try Sample AI Text
+          <div className="p-5 sm:p-6 flex flex-col border-t md:border-t-0 border-line">
+            <div className="flex items-center justify-between mb-2 min-h-[30px]">
+              <label htmlFor="humanize-output" className="text-[13.5px] font-medium text-ink">
+                Rewritten
+              </label>
+              {result && (
+                <div className="flex items-center gap-1">
+                  <button onClick={handleCopy} className="btn btn-ghost btn-sm">
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                  <button onClick={handleDownloadTxt} className="btn btn-ghost btn-sm">
+                    .txt
+                  </button>
+                  <button onClick={handleDownloadDocx} disabled={isExporting} className="btn btn-ghost btn-sm">
+                    <Download className="w-3.5 h-3.5" /> Word
+                  </button>
+                </div>
+              )}
+            </div>
+            <textarea
+              id="humanize-output"
+              readOnly
+              value={result?.humanized || ''}
+              placeholder="The rewritten text will appear here."
+              className="field h-80 resize-none leading-relaxed !bg-sunken"
+            />
+            <div className="text-xs text-subtle mt-2 tabular-nums">
+              {result ? `${result.stats.wordCount} words` : ' '}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-5 sm:px-6 py-3.5 border-t border-line bg-sunken rounded-b-lg">
+          {error && <p className="text-[13px] text-bad mr-auto">{error}</p>}
+          <button onClick={handleHumanize} disabled={!inputText.trim() || isProcessing} className="btn btn-primary">
+            {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isProcessing ? 'Rewriting' : 'Rewrite text'}
           </button>
         </div>
-      </div>
+      </section>
 
-      {/* Controls Bar: Mode selector & File Upload */}
-      <div className="glass-card rounded-3xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <label className="text-xs font-bold uppercase tracking-wider text-slate-300 whitespace-nowrap">
-            Humanization Mode:
-          </label>
-          <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-xs">
-            <button
-              onClick={() => setMode('professional')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                mode === 'professional'
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Professional Polish
-            </button>
-            <button
-              onClick={() => setMode('conversational')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                mode === 'conversational'
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Conversational & Direct
-            </button>
-            <button
-              onClick={() => setMode('academic')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer ${
-                mode === 'academic'
-                  ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Academic Rigor
-            </button>
-            <button
-              onClick={() => setMode('stealth')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                mode === 'stealth'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-orange-500/25'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Flame className="w-3.5 h-3.5 text-amber-200" /> Stealth Bypass
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept=".pdf,.docx,.doc,.txt,.md"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
-            }}
-          />
-
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="text-xs font-semibold px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="w-3.5 h-3.5 text-blue-400" /> Upload File (PDF/DOCX/TXT)
-              </>
-            )}
-          </button>
-
-          <button
-            onClick={handleHumanize}
-            disabled={!inputText.trim() || isProcessing}
-            className={`px-5 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 shadow-lg ${
-              inputText.trim() && !isProcessing
-                ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white shadow-blue-500/25 cursor-pointer active:scale-95'
-                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-            }`}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Humanizing...
-              </>
-            ) : (
-              <>
-                <Zap className="w-3.5 h-3.5" /> Humanize Text
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Input / Output Workspace */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Input Panel */}
-        <div className="glass-card rounded-3xl p-5 flex flex-col shadow-xl relative">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-400" /> Original Text / Document
-            </span>
-            {fileName && (
-              <span className="text-[11px] bg-slate-900 px-3 py-1 rounded-lg text-blue-300 border border-blue-500/30 flex items-center gap-1.5 font-medium">
-                {fileName}
-                <button onClick={() => setFileName(null)} className="hover:text-white">
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-          </div>
-          <textarea
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Paste any AI-generated essay, resume, cover letter, or article here... Or click 'Upload File' above to parse a PDF or DOCX file."
-            className="w-full h-80 p-4 text-xs bg-slate-950/80 border border-slate-800/80 rounded-2xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none font-sans leading-relaxed"
-          />
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2.5 px-1 font-medium">
-            <span>{wordCount} words</span>
-            {inputText && (
-              <button
-                onClick={() => {
-                  setInputText('');
-                  setFileName(null);
-                  setResult(null);
-                }}
-                className="text-slate-400 hover:text-rose-400 cursor-pointer"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Output Panel */}
-        <div className="glass-card rounded-3xl p-5 flex flex-col shadow-xl">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Humanized Output
-            </span>
-            {result && (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={handleCopy}
-                  className="text-xs font-bold px-3 py-1 rounded-lg bg-slate-900 text-slate-200 hover:bg-slate-800 border border-slate-700 flex items-center gap-1 transition cursor-pointer active:scale-95"
-                >
-                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
-                <button
-                  onClick={handleDownloadDocx}
-                  disabled={isExporting}
-                  className="text-xs font-bold px-3 py-1 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/40 flex items-center gap-1 transition cursor-pointer active:scale-95"
-                >
-                  <Download className="w-3 h-3" /> Word (.docx)
-                </button>
-                <button
-                  onClick={handleDownloadTxt}
-                  className="text-xs font-bold px-3 py-1 rounded-lg bg-slate-900 text-slate-200 hover:bg-slate-800 border border-slate-700 flex items-center gap-1 transition cursor-pointer active:scale-95"
-                >
-                  <FileText className="w-3 h-3" /> .txt
-                </button>
-              </div>
-            )}
-          </div>
-          <textarea
-            readOnly
-            value={result?.humanized || ''}
-            placeholder="Humanized text will appear here with dynamic sentence length variations, authentic tone, and zero robotic cliches..."
-            className="w-full h-80 p-4 text-xs bg-slate-950/80 border border-slate-800/80 rounded-2xl text-slate-100 placeholder-slate-600 focus:outline-none resize-none font-sans leading-relaxed"
-          />
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2.5 px-1 font-medium">
-            <span>{result ? `${result.stats.wordCount} words` : '0 words'}</span>
-            <span className="text-emerald-400">{result ? '✓ Natural Human Cadence' : ''}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Score Comparison Banner (When result is available) */}
       {result && (
-        <div className="glass-card rounded-3xl p-6 shadow-2xl animate-fadeIn border-t-2 border-t-blue-500">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {/* AI Score Before vs After */}
-            <div className="bg-slate-950/90 p-4 rounded-2xl border border-slate-800 flex items-center justify-between shadow-sm">
-              <div>
-                <span className="text-[10px] text-rose-400 uppercase font-black tracking-wider block">AI Before</span>
-                <span className="text-2xl font-black text-rose-400">{result.stats.originalAiScore}%</span>
-              </div>
-              <ArrowRight className="w-4 h-4 text-slate-500" />
-              <div>
-                <span className="text-[10px] text-emerald-400 uppercase font-black tracking-wider block">After Humanizing</span>
-                <span className="text-2xl font-black text-emerald-400">{result.stats.newAiScore}%</span>
-              </div>
+        <section className="panel">
+          <dl className="grid grid-cols-2 md:grid-cols-4 divide-line md:divide-x [&>div]:p-5 [&>div]:sm:px-6">
+            <div>
+              <dt className="text-[13px] text-muted">AI likelihood</dt>
+              <dd className="mt-1 text-xl font-semibold tabular-nums text-ink">
+                <span className="text-subtle line-through decoration-1 mr-2 text-base font-normal">
+                  {result.stats.originalAiScore}%
+                </span>
+                {result.stats.newAiScore}%
+              </dd>
             </div>
-
-            {/* Human Authenticity */}
-            <div className="bg-slate-950/90 p-4 rounded-2xl border border-slate-800 shadow-sm">
-              <span className="text-[10px] text-sky-400 uppercase font-black tracking-wider block">Human Authenticity</span>
-              <span className="text-2xl font-black text-white">{result.stats.humanScore}%</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">High natural variance</p>
+            <div>
+              <dt className="text-[13px] text-muted">Human score</dt>
+              <dd className="mt-1 text-xl font-semibold tabular-nums text-ink">{result.stats.humanScore}%</dd>
             </div>
-
-            {/* Burstiness Metric */}
-            <div className="bg-slate-950/90 p-4 rounded-2xl border border-slate-800 shadow-sm">
-              <span className="text-[10px] text-amber-400 uppercase font-black tracking-wider block">Burstiness Score</span>
-              <span className="text-sm font-black text-white block mt-1">{result.stats.newBurstiness}</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Varies between 4 to 28 words</p>
+            <div>
+              <dt className="text-[13px] text-muted">Sentence variety</dt>
+              <dd className="mt-1 text-[15px] font-semibold text-ink">{result.stats.newBurstiness}</dd>
             </div>
-
-            {/* AI Cliches Removed */}
-            <div className="bg-slate-950/90 p-4 rounded-2xl border border-slate-800 shadow-sm">
-              <span className="text-[10px] text-sky-400 uppercase font-black tracking-wider block">Cliches Replaced</span>
-              <span className="text-2xl font-black text-sky-400">{result.stats.markersRemoved}</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Robotic markers eliminated</p>
+            <div>
+              <dt className="text-[13px] text-muted">Stock phrases replaced</dt>
+              <dd className="mt-1 text-xl font-semibold tabular-nums text-ink">{result.stats.markersRemoved}</dd>
             </div>
-          </div>
-        </div>
+          </dl>
+        </section>
       )}
     </div>
   );

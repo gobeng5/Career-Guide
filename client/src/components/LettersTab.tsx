@@ -1,15 +1,7 @@
 import { useState } from 'react';
-import {
-  Mail,
-  FileText,
-  Download,
-  Copy,
-  Check,
-  Sparkles,
-  Briefcase,
-  Building,
-  User
-} from 'lucide-react';
+import { Download, Copy, Check, Loader2 } from 'lucide-react';
+import { DocumentView } from './DocumentView';
+import { EmptyState, LoadingState } from './States';
 
 interface LettersResult {
   meta: {
@@ -30,12 +22,7 @@ interface LettersTabProps {
   hasResume: boolean;
 }
 
-export const LettersTab = ({
-  lettersData,
-  isLoading,
-  onGenerate,
-  hasResume
-}: LettersTabProps) => {
+export const LettersTab = ({ lettersData, isLoading, onGenerate, hasResume }: LettersTabProps) => {
   const [activeType, setActiveType] = useState<'cover' | 'application'>('cover');
   const [tone, setTone] = useState<'confident' | 'tech' | 'executive' | 'formal'>('confident');
   const [applicantName, setApplicantName] = useState('');
@@ -107,173 +94,111 @@ export const LettersTab = ({
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Configuration Header Card */}
-      <div className="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-6 pb-5 border-b border-slate-800">
-          <div>
-            <h3 className="text-xl font-black text-white flex items-center gap-2.5 tracking-tight">
-              <Mail className="w-5 h-5 text-blue-400" /> Cover & Application Letter Studio
-            </h3>
-            <p className="text-xs text-slate-300 mt-1">
-              Generates both a narrative Cover Letter and a formal HR Application Letter featuring your top Google XYZ accomplishments
-            </p>
-          </div>
-
-          <button
-            onClick={handleGenerate}
-            disabled={!hasResume || isLoading}
-            className={`px-6 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 self-start md:self-auto shadow-xl ${
-              hasResume && !isLoading
-                ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white shadow-blue-500/25 cursor-pointer active:scale-95'
-                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            {lettersData ? 'Regenerate Letters' : 'Generate Both Letters'}
-          </button>
+    <div className="space-y-6">
+      <section className="panel">
+        <div className="px-6 py-4 border-b border-line">
+          <h2 className="text-[15px] font-semibold text-ink">Letter details</h2>
+          <p className="text-[13px] text-muted mt-0.5">
+            All optional. Anything left blank is taken from your resume and the job posting.
+          </p>
         </div>
 
-        {/* Customization Controls: Tone and Meta */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6">
           <div>
-            <label className="text-[11px] font-bold text-slate-200 block mb-1.5 uppercase tracking-wider">
-              Letter Tone / Style
+            <label htmlFor="tone" className="label">
+              Tone
             </label>
-            <select
-              value={tone}
-              onChange={(e: any) => setTone(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 shadow-sm"
-            >
-              <option value="confident">Confident & Results-Driven</option>
-              <option value="tech">Tech & Innovation Focused</option>
-              <option value="executive">Executive & Visionary</option>
-              <option value="formal">Traditional & Formal</option>
+            <select id="tone" value={tone} onChange={(e: any) => setTone(e.target.value)} className="field">
+              <option value="confident">Confident</option>
+              <option value="tech">Technical</option>
+              <option value="executive">Executive</option>
+              <option value="formal">Formal</option>
             </select>
           </div>
-
           <div>
-            <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1 mb-1.5 uppercase tracking-wider">
-              <User className="w-3.5 h-3.5 text-blue-400" /> Applicant Name
+            <label htmlFor="applicant" className="label">
+              Your name
             </label>
             <input
+              id="applicant"
               type="text"
-              placeholder="e.g. Alex Rivera"
               value={applicantName}
               onChange={(e) => setApplicantName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 placeholder-slate-600 shadow-sm"
+              className="field"
             />
           </div>
-
           <div>
-            <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1 mb-1.5 uppercase tracking-wider">
-              <Building className="w-3.5 h-3.5 text-sky-400" /> Target Company
+            <label htmlFor="company" className="label">
+              Company
             </label>
             <input
+              id="company"
               type="text"
-              placeholder="e.g. Google, NovaPay LLC"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 placeholder-slate-600 shadow-sm"
+              className="field"
             />
           </div>
-
           <div>
-            <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1 mb-1.5 uppercase tracking-wider">
-              <Briefcase className="w-3.5 h-3.5 text-emerald-400" /> Target Job Title
+            <label htmlFor="jobtitle" className="label">
+              Job title
             </label>
             <input
+              id="jobtitle"
               type="text"
-              placeholder="e.g. Senior Software Engineer"
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-blue-500 placeholder-slate-600 shadow-sm"
+              className="field"
             />
           </div>
         </div>
-      </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-3.5 border-t border-line bg-sunken rounded-b-lg">
+          {!hasResume && <p className="text-[13px] text-muted mr-auto">Add your resume above first.</p>}
+          <button onClick={handleGenerate} disabled={!hasResume || isLoading} className="btn btn-primary">
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isLoading ? 'Writing' : lettersData ? 'Rewrite letters' : 'Write letters'}
+          </button>
+        </div>
+      </section>
 
       {isLoading ? (
-        <div className="glass-card rounded-3xl p-16 text-center flex flex-col items-center justify-center">
-          <div className="relative w-16 h-16 mb-5">
-            <div className="absolute inset-0 rounded-full border-4 border-blue-500/20" />
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-500 border-r-sky-400 animate-spin" />
-          </div>
-          <h3 className="text-lg font-bold text-white mb-1.5">Crafting Tailored Application Letters...</h3>
-          <p className="text-xs text-slate-400">Integrating your validated Google XYZ accomplishments into the narrative</p>
-        </div>
-      ) : lettersData ? (
-        <div className="space-y-4">
-          {/* Document Switcher & Export Bar */}
+        <LoadingState title="Writing your letters" detail="Drawing on your strongest results from the resume." />
+      ) : lettersData && activeContent ? (
+        <>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-xs">
-              <button
-                onClick={() => setActiveType('cover')}
-                className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
-                  activeType === 'cover'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Mail className="w-4 h-4" /> Cover Letter
+            <div className="segmented" role="group" aria-label="Letter">
+              <button aria-pressed={activeType === 'cover'} onClick={() => setActiveType('cover')}>
+                Cover letter
               </button>
-              <button
-                onClick={() => setActiveType('application')}
-                className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer ${
-                  activeType === 'application'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <FileText className="w-4 h-4" /> Formal Application Letter
+              <button aria-pressed={activeType === 'application'} onClick={() => setActiveType('application')}>
+                Application letter
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCopy}
-                className="text-xs font-bold px-3.5 py-2 rounded-xl bg-slate-900 text-slate-200 hover:bg-slate-800 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer active:scale-95"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" /> Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" /> Copy Text
-                  </>
-                )}
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={handleCopy} className="btn btn-ghost btn-sm">
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? 'Copied' : 'Copy text'}
               </button>
-
-              <button
-                onClick={handleDownloadTxt}
-                className="text-xs font-bold px-3.5 py-2 rounded-xl bg-slate-900 text-slate-200 hover:bg-slate-800 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer active:scale-95"
-              >
-                <FileText className="w-3.5 h-3.5" /> Plain Text (.txt)
+              <button onClick={handleDownloadTxt} className="btn btn-secondary btn-sm">
+                Download .txt
               </button>
-
-              <button
-                onClick={handleDownloadDocx}
-                disabled={isExporting}
-                className="text-xs font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white shadow-lg shadow-blue-500/25 flex items-center gap-1.5 transition cursor-pointer active:scale-95"
-              >
+              <button onClick={handleDownloadDocx} disabled={isExporting} className="btn btn-primary btn-sm">
                 <Download className="w-3.5 h-3.5" />
-                {isExporting ? 'Generating Word...' : 'Download Word (.docx)'}
+                {isExporting ? 'Preparing file' : 'Download Word'}
               </button>
             </div>
           </div>
 
-          {/* Letter Presentation Paper Card */}
-          <div className="glass-card rounded-3xl p-6 sm:p-8 shadow-2xl relative">
-            <div className="absolute top-5 right-6 text-[10px] uppercase font-black tracking-widest text-blue-300 bg-blue-950/60 px-3 py-1 rounded-full border border-blue-500/30">
-              {activeType === 'cover' ? 'Narrative Letter' : 'Formal Corporate Submission'}
-            </div>
-            <pre className="text-xs sm:text-sm text-slate-200 font-sans whitespace-pre-wrap leading-relaxed bg-slate-950/90 p-8 rounded-2xl border border-slate-800/80 max-h-[550px] overflow-y-auto shadow-inner">
-              {activeContent}
-            </pre>
-          </div>
-        </div>
-      ) : null}
+          <DocumentView text={activeContent} />
+        </>
+      ) : (
+        <EmptyState title="No letters yet">
+          Select Write letters to get a cover letter and a formal application letter. You can switch between them and
+          download either one.
+        </EmptyState>
+      )}
     </div>
   );
 };
