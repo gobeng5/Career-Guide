@@ -1,8 +1,14 @@
-import { createRequire } from 'module';
 import mammoth from 'mammoth';
+import { PDFParse } from 'pdf-parse';
 
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+async function pdfParse(fileBuffer) {
+  const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
+  try {
+    return await parser.getText({ pageJoiner: '' });
+  } finally {
+    await parser.destroy();
+  }
+}
 
 export async function parseDocument(fileBuffer, originalName, mimeType) {
   const extension = (originalName || '').split('.').pop().toLowerCase();

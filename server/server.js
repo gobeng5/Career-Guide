@@ -380,6 +380,11 @@ app.use((req, res, next) => {
   res.sendFile(path.join(clientDistPath, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`CareerCraft AI Server running on http://localhost:${PORT}`);
-});
+// On Vercel the app is invoked as a serverless function (see api/index.js), so skip listen()
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Career Guide Server running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;

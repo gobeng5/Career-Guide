@@ -158,10 +158,7 @@ export const LoginPage = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xl font-black tracking-tight text-white">CareerCraft</span>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                    AI
-                  </span>
+                  <span className="text-xl font-black tracking-tight text-white">Career Guide</span>
                 </div>
                 <p className="text-xs text-blue-300/80 font-medium">Google XYZ Resume Suite</p>
               </div>
@@ -244,7 +241,7 @@ export const LoginPage = ({
                 </h3>
                 <p className="text-xs text-slate-400 mt-1">
                   {isRegister
-                    ? 'Join CareerCraft AI to accelerate your career search'
+                    ? 'Join Career Guide to accelerate your career search'
                     : 'Sign in to access your resumes, scoring reports & letters'}
                 </p>
               </div>

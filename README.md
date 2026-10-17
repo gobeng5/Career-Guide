@@ -1,8 +1,8 @@
-# CareerCraft AI
+# Career Guide
 
 **Google XYZ Resume Scorer • Job Tailor • Letters Generator • Deep AI Humanizer**
 
-CareerCraft AI is an all-in-one web application designed to optimize your job applications using Google's proven XYZ formula and bypass robotic AI cadence.
+Career Guide is an all-in-one web application designed to optimize your job applications using Google's proven XYZ formula and bypass robotic AI cadence.
 
 ---
 

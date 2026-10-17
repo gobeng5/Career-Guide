@@ -305,7 +305,7 @@ export function App() {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-extrabold text-white tracking-tight">CareerCraft AI</span>
+                  <span className="text-sm font-extrabold text-white tracking-tight">Career Guide</span>
                   <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-blue-300 bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-800/60">
                     <Layers className="w-3 h-3 text-blue-400" /> {tabMeta.title}
                   </span>
@@ -553,7 +553,7 @@ export function App() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>CareerCraft AI &bull; Google XYZ Resume Suite & Deep AI Humanizer</span>
+          <span>Career Guide &bull; Google XYZ Resume Suite & Deep AI Humanizer</span>
           <span>Accomplished [X] as measured by [Y], by doing [Z]</span>
         </div>
       </footer>

@@ -1,8 +1,8 @@
 @echo off
-title CareerCraft AI
+title Career Guide
 cd /d "%~dp0"
 echo ============================================================
-echo   Starting CareerCraft AI Server...
+echo   Starting Career Guide Server...
 echo   Local Address: http://localhost:5000
 echo ============================================================
 echo.

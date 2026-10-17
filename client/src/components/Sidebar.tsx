@@ -107,10 +107,7 @@ export const Sidebar = ({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-lg font-black tracking-tight text-white">CareerCraft</span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                  AI
-                </span>
+                <span className="text-lg font-black tracking-tight text-white">Career Guide</span>
               </div>
               <p className="text-[11px] text-blue-300/80 font-medium">Google XYZ Resume Suite</p>
             </div>
