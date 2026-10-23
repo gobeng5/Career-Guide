@@ -1,49 +1,32 @@
 import { extractKeywords, extractBulletPoints, analyzeBulletPoint } from './xyzEngine.js';
 
 /**
- * Generates tailored Cover Letter and Application Letter
+ * Generates tailored Cover Letter and Application Letter (offline fallback).
+ * Letters follow formal business-letter conventions, use only facts found in
+ * the resume, and never contain placeholders: unknown details are left out.
  */
 export function generateApplicationDocuments(resumeText, jobDescriptionText, options = {}) {
   const tone = options.tone || 'confident'; // 'confident' | 'formal' | 'tech' | 'executive'
-  const applicantName = options.applicantName || extractApplicantName(resumeText) || '[Your Name]';
-  const companyName = options.companyName || extractCompanyName(jobDescriptionText) || '[Hiring Organization]';
-  const jobTitle = options.jobTitle || extractJobTitle(jobDescriptionText) || '[Target Role]';
+  const applicantName = options.applicantName || extractApplicantName(resumeText);
+  const companyName = options.companyName || extractCompanyName(jobDescriptionText);
+  const jobTitle = options.jobTitle || extractJobTitle(jobDescriptionText);
+  const contact = extractContactDetails(resumeText);
 
   const bullets = extractBulletPoints(resumeText);
   const jdKeywords = extractKeywords(jobDescriptionText).slice(0, 15);
-  const keySkills = jdKeywords.map(k => k.keyword).slice(0, 5).join(', ');
+  const keySkills = listJoin(sharedSkills(jdKeywords.map(k => k.keyword), resumeText).slice(0, 4));
 
-  // Select 2 top XYZ achievements from resume to feature in the letters
-  const analyzedBullets = bullets.map(analyzeBulletPoint);
-  const bestBullets = analyzedBullets
-    .filter(b => b.components.y.present || b.score >= 60)
+  // Feature up to 2 of the applicant's own strongest bullets, as written in the resume.
+  // Bullets with figures come first: they are the most convincing evidence.
+  const achievements = bullets
+    .map(analyzeBulletPoint)
+    .map(b => ({ ...b, rank: b.score + (/\d/.test(b.original) ? 100 : 0) }))
+    .filter(b => /\d/.test(b.original) || b.score >= 60)
+    .sort((a, b) => b.rank - a.rank)
     .slice(0, 2)
-    .map(b => b.rewrite || b.original);
+    .map(b => sentence(b.original));
 
-  const achievement1 = bestBullets[0] || 'Accelerated key product initiatives by 35% through robust technical execution and cross-team alignment';
-  const achievement2 = bestBullets[1] || 'Streamlined system operations, cutting delivery cycle latency by 40% while upholding rigorous quality standards';
-
-  // 1. Generate Cover Letter
-  const coverLetter = buildCoverLetter({
-    applicantName,
-    companyName,
-    jobTitle,
-    keySkills,
-    achievement1,
-    achievement2,
-    tone
-  });
-
-  // 2. Generate Formal Job Application Letter (Letter of Intent)
-  const applicationLetter = buildApplicationLetter({
-    applicantName,
-    companyName,
-    jobTitle,
-    keySkills,
-    achievement1,
-    achievement2,
-    tone
-  });
+  const facts = { applicantName, companyName, jobTitle, contact, keySkills, achievements, tone };
 
   return {
     meta: {
@@ -53,104 +36,133 @@ export function generateApplicationDocuments(resumeText, jobDescriptionText, opt
       tone,
       extractedSkills: jdKeywords.map(k => k.keyword).slice(0, 8)
     },
-    coverLetter,
-    applicationLetter
+    coverLetter: buildCoverLetter(facts),
+    applicationLetter: buildApplicationLetter(facts)
   };
 }
 
 function extractApplicantName(resumeText) {
   if (!resumeText) return '';
-  const firstLine = resumeText.trim().split('\n')[0].trim();
-  if (firstLine.length < 40 && !firstLine.includes(':') && !firstLine.includes('@')) {
-    return firstLine.replace(/^[#*\s]+/, '');
+  const firstLine = resumeText.trim().split('\n')[0].trim().replace(/^[#*\s]+/, '');
+  if (firstLine.length < 40 && !firstLine.includes(':') && !firstLine.includes('@') && !/\d/.test(firstLine)) {
+    return firstLine;
   }
   return '';
 }
 
 function extractCompanyName(jdText) {
   if (!jdText) return '';
-  const match = jdText.match(/(?:at|company:|about)\s+([A-Z][A-Za-z0-9&.\s]{2,25}(?:Inc|LLC|Corp|Technologies|Solutions|Labs|Group)?)/);
-  if (match) return match[1].trim();
-  return '';
+  const labelled = jdText.match(/^\s*Company:\s*(.{2,60})$/im);
+  if (labelled) return labelled[1].trim();
+  const match = jdText.match(/(?:at|about)\s+([A-Z][A-Za-z0-9&.\s]{2,25}(?:Inc|LLC|Corp|Technologies|Solutions|Labs|Group)?)/);
+  return match ? match[1].trim() : '';
 }
 
 function extractJobTitle(jdText) {
   if (!jdText) return '';
-  const match = jdText.match(/(?:role|position|title|seeking an?|hiring an?)\s*:?\s*([A-Za-z0-9\s-]{4,35}(?:engineer|developer|manager|lead|architect|analyst|specialist|designer))/i);
-  if (match) return match[1].trim();
-  return '';
-}
-
-function buildCoverLetter({ applicantName, companyName, jobTitle, keySkills, achievement1, achievement2, tone }) {
-  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-  let introHook = '';
-  if (tone === 'tech') {
-    introHook = `I am writing to express my strong enthusiasm for the ${jobTitle} position at ${companyName}. Having followed your recent technical advancements, I am excited by the opportunity to contribute my background in ${keySkills || 'engineering and modern architectures'} to your engineering team.`;
-  } else if (tone === 'executive') {
-    introHook = `With a consistent track record of aligning strategic vision with high-impact operational execution, I am writing to submit my candidacy for the ${jobTitle} position at ${companyName}.`;
-  } else {
-    // Confident & Results-Driven
-    introHook = `I am excited to apply for the ${jobTitle} opening at ${companyName}. With deep hands-on expertise in ${keySkills || 'scalable solutions and innovative execution'}, I have consistently delivered measurable business outcomes by applying structured Google XYZ performance principles.`;
+  // Imported postings and most pasted ones start with the job title
+  const firstLine = jdText.trim().split('\n')[0].trim();
+  if (firstLine.length > 2 && firstLine.split(/\s+/).length <= 8 && !/[.:@!?]/.test(firstLine)) {
+    return firstLine;
   }
-
-  return `${applicantName}
-${currentDate}
-
-Hiring Team / Search Committee
-${companyName}
-
-Subject: Application for ${jobTitle} - ${applicantName}
-
-Dear Hiring Manager,
-
-${introHook}
-
-Throughout my career, I have focused on solving high-stakes challenges by combining technical precision with quantifiable business value. In reviewing your job requirements, I recognized an immediate alignment with my core strengths and achievements:
-
-• Key Accomplishment: ${achievement1}
-• High-Impact Execution: ${achievement2}
-
-What particularly draws me to ${companyName} is your dedication to excellence and forward-thinking problem solving. I thrive in collaborative environments where high ownership, rapid iteration, and measurable outcomes are rewarded. My experience in ${keySkills || 'driving scalable solutions'} equips me to hit the ground running and make immediate contributions to your strategic roadmap.
-
-I would welcome the opportunity to discuss how my technical qualifications and data-driven approach will support ${companyName}'s growth goals. Thank you for your time and consideration.
-
-Warm regards,
-
-${applicantName}
-`;
+  const match = jdText.match(/(?:role|position|title|seeking an?|hiring an?)\s*:\s*([A-Za-z0-9\s-]{4,35}(?:engineer|developer|manager|lead|architect|analyst|specialist|designer|officer|accountant|consultant|coordinator|assistant|administrator))/i);
+  return match ? match[1].trim() : '';
 }
 
-function buildApplicationLetter({ applicantName, companyName, jobTitle, keySkills, achievement1, achievement2, tone }) {
-  const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+// Words too general to present as skills in a letter
+const GENERIC_WORDS = new Set([
+  'data', 'business', 'performance', 'experience', 'team', 'teams', 'work', 'skills', 'management', 'support',
+  'ability', 'strong', 'role', 'years', 'knowledge', 'requirements', 'responsibilities', 'analyst', 'engineer',
+  'development', 'company', 'solutions', 'services', 'customer', 'customers', 'growth', 'power', 'senior', 'junior'
+]);
 
-  return `${applicantName}
-Contact Details: [Phone Number] | [Email Address] | [Location]
-${currentDate}
-
-To:
-The Human Resources Department / Hiring Official
-${companyName}
-
-RE: FORMAL APPLICATION FOR THE POSITION OF ${jobTitle.toUpperCase()}
-
-Dear Sir / Madam,
-
-Please accept this letter and the attached resume as my formal application for the advertised position of ${jobTitle} with ${companyName}.
-
-I bring a rigorous professional background characterized by proven performance, systematic problem solving, and adherence to industry best practices. My qualifications match the requirements outlined in your job specification, particularly regarding proficiency in ${keySkills || 'core technical proficiencies, project execution, and cross-functional leadership'}.
-
-To substantiate my candidacy, please consider the following validated outcomes from my recent professional tenure:
-1. Measurable Impact: ${achievement1}.
-2. Technical Delivery: ${achievement2}.
-
-I am confident that my work ethic, analytical capability, and dedication to institutional goals will make me a productive asset to ${companyName}. I welcome the opportunity to attend a formal interview to discuss my suitability in greater detail.
-
-Thank you for your consideration.
-
-Yours faithfully,
-
-${applicantName}
-`;
+// Job-posting keywords the resume also mentions, written as the resume writes them
+function sharedSkills(keywords, resumeText) {
+  const found = [];
+  for (const keyword of keywords) {
+    if (GENERIC_WORDS.has(keyword.toLowerCase())) continue;
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = resumeText.match(new RegExp(`(?<![\\w.])${escaped}(?![\\w])`, 'i'));
+    if (match && !found.some(f => f.toLowerCase() === match[0].toLowerCase())) found.push(match[0]);
+  }
+  return found;
 }
 
+function extractContactDetails(resumeText) {
+  const header = (resumeText || '').slice(0, 800);
+  return [
+    header.match(/\+?\(?\d[\d\s().-]{7,}\d/)?.[0]?.trim(),
+    header.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]
+  ].filter(Boolean);
+}
+
+const listJoin = (items) =>
+  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+const IRREGULAR_PAST = new Set([
+  'built', 'led', 'ran', 'grew', 'cut', 'won', 'made', 'drove', 'wrote', 'taught', 'set', 'sold', 'brought', 'began',
+  'took', 'gave', 'kept', 'held', 'met', 'oversaw', 'rebuilt', 'spent', 'saw', 'found', 'chose', 'shipped'
+]);
+
+// A resume bullet as a first-person sentence: "Built X" becomes "I built X."
+function sentence(text) {
+  let clean = text.replace(/^[-*•\d.)\s]+/, '').trim();
+  const firstWord = clean.split(/\s+/)[0].toLowerCase();
+  if (/^[a-z]+ed$/.test(firstWord) || IRREGULAR_PAST.has(firstWord)) {
+    clean = `I ${clean[0].toLowerCase()}${clean.slice(1)}`;
+  }
+  return /[.!?]$/.test(clean) ? clean : `${clean}.`;
+}
+
+const today = () => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+function letterHeader({ applicantName, companyName, jobTitle, contact }) {
+  return [
+    [applicantName, ...contact].filter(Boolean).join('\n'),
+    today(),
+    ['The Hiring Manager', companyName].filter(Boolean).join('\n'),
+    jobTitle ? `Re: Application for the Position of ${jobTitle}` : 'Re: Application for the Advertised Vacancy',
+    'Dear Hiring Manager,'
+  ];
+}
+
+const signOff = (applicantName) => ['Yours faithfully,', applicantName].filter(Boolean).join('\n\n');
+
+function buildCoverLetter(facts) {
+  const { companyName, jobTitle, keySkills, achievements, tone } = facts;
+  const position = jobTitle ? `the position of ${jobTitle}` : 'the advertised position';
+  const at = companyName ? ` at ${companyName}` : '';
+  const employer = companyName || 'your organisation';
+
+  const opening = {
+    tech: `I am writing to apply for ${position}${at}. The technical scope of the role${keySkills ? `, particularly its emphasis on ${keySkills},` : ''} closely matches the work I have been doing, and I would value the opportunity to contribute to your team.`,
+    executive: `I am writing to submit my application for ${position}${at}. Throughout my career I have focused on aligning strategy with disciplined execution, and I believe this experience would be of value to ${employer}.`,
+    formal: `I wish to apply for ${position}${at}, and I enclose my curriculum vitae for your consideration.`,
+    confident: `I am writing to apply for ${position}${at}. My experience${keySkills ? ` in ${keySkills}` : ''} has prepared me well for the responsibilities of this role.`
+  }[tone] || '';
+
+  const evidence = achievements.length
+    ? `In my recent work, I have delivered results that are directly relevant to this position. ${achievements.join(' ')}`
+    : `My experience has given me a sound grounding in the responsibilities this role involves, and I take a careful, results-focused approach to my work.`;
+
+  const fit = `I am drawn to ${employer} because the role offers the opportunity to apply my skills where they can make a measurable difference. I work well both independently and as part of a team, and I hold myself to high professional standards.`;
+
+  const close = `I would welcome the opportunity to discuss my application with you at an interview. Thank you for your time and consideration.`;
+
+  return [...letterHeader(facts), opening, evidence, fit, close, signOff(facts.applicantName)].join('\n\n') + '\n';
+}
+
+function buildApplicationLetter(facts) {
+  const { companyName, jobTitle, keySkills, achievements } = facts;
+  const position = jobTitle ? `the position of ${jobTitle}` : 'the advertised position';
+  const at = companyName ? ` with ${companyName}` : '';
+
+  const body = [
+    `Please accept this letter and the enclosed curriculum vitae as my formal application for ${position}${at}.`,
+    `I believe that my qualifications and experience meet the requirements set out in the job description${keySkills ? `, particularly with regard to ${keySkills}` : ''}.${achievements[0] ? ` For example, ${achievements[0][0].toLowerCase() === 'i' && achievements[0][1] === ' ' ? achievements[0] : achievements[0][0].toLowerCase() + achievements[0].slice(1)}` : ''}`,
+    `I am confident that I would make a positive contribution to ${companyName || 'your organisation'}, and I would welcome the opportunity to attend an interview to discuss my suitability in greater detail.`,
+    'Thank you for considering my application.'
+  ];
+
+  return [...letterHeader(facts), ...body, signOff(facts.applicantName)].join('\n\n') + '\n';
+}

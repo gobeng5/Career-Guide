@@ -322,7 +322,7 @@ app.post('/api/export-docx', async (req, res) => {
       return res.status(400).json({ error: 'Document content is required.' });
     }
 
-    const docxBuffer = await createDocxBuffer(title || 'Document', content);
+    const docxBuffer = await createDocxBuffer(typeof title === 'string' ? title : '', content);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${filename || 'document.docx'}"`);
     res.send(docxBuffer);

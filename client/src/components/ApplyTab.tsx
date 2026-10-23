@@ -33,13 +33,68 @@ const firstEmail = (text: string) =>
 const PLACEHOLDER_RE = /\[(?:[A-Z][\w .&/-]{2,40})\]/;
 const real = (value?: string) => (value && !/^\s*\[.*\]\s*$/.test(value) ? value.trim() : '');
 
-async function toDocx(title: string, content: string): Promise<Blob> {
+const looksLikeName = (line: string) =>
+  /^[\p{L}][\p{L} .'-]{1,60}$/u.test(line) && line.split(/\s+/).length <= 5;
+
+// Contact details normally sit in the resume header, so only its top is searched
+function contactDetails(resume: string) {
+  const header = resume.slice(0, 800);
+  return {
+    phone: header.match(/\+?\(?\d[\d\s().-]{7,}\d/)?.[0]?.trim() || '',
+    email: firstEmail(header),
+    linkedin: header.match(/(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[\w%-]+\/?/i)?.[0] || ''
+  };
+}
+
+const DOCUMENT_NAMES: Record<AttachmentId, string> = {
+  tailored: 'curriculum vitae',
+  original: 'curriculum vitae',
+  cover: 'cover letter',
+  application: 'letter of application'
+};
+
+const listJoin = (items: string[]) =>
+  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+const formalSubject = (role: string, name: string) =>
+  [role ? `Application for the Position of ${role}` : 'Job Application', name].filter(Boolean).join(' – ');
+
+function formalBody(opts: {
+  role: string;
+  company: string;
+  name: string;
+  contact: { phone: string; email: string; linkedin: string };
+  documents: AttachmentId[];
+}) {
+  const { role, company, name, contact } = opts;
+  const documents = [...new Set(opts.documents.map((d) => DOCUMENT_NAMES[d]))];
+  const position = role ? `the position of ${role}` : 'the advertised position';
+  const employer = company || 'your organisation';
+
+  const paragraphs = [
+    'Dear Hiring Manager,',
+    `I am writing to formally apply for ${position}${company ? ` at ${company}` : ''}.`,
+    documents.length
+      ? `Please find attached my ${listJoin(documents)} for your consideration. ${
+          documents.length > 1 ? 'They set' : 'It sets'
+        } out my qualifications, experience and the results I have achieved in previous roles.`
+      : '',
+    `I am confident that my skills and experience align closely with the requirements of this role, and I would welcome the opportunity to contribute to ${employer}. I am available for an interview at your convenience.`,
+    'Thank you for your time and consideration. I look forward to hearing from you.',
+    ['Yours faithfully,', '', name, contact.phone, contact.email, contact.linkedin].filter((l, i) => i < 2 || l).join('\n')
+  ];
+
+  return paragraphs.filter(Boolean).join('\n\n');
+}
+
+// Resumes and letters carry their own heading, so the document gets no extra title
+async function toDocx(label: string, content: string): Promise<Blob> {
   const response = await fetch('/api/export-docx', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, content, filename: 'document.docx' })
+    body: JSON.stringify({ title: '', content, filename: 'document.docx' })
   });
-  if (!response.ok) throw new Error(`Couldn’t prepare “${title}”. Try again.`);
+  if (!response.ok) throw new Error(`Couldn’t prepare the ${label}. Try again.`);
   return response.blob();
 }
 
@@ -58,22 +113,21 @@ export const ApplyTab = ({
     (jobLines[0] && jobLines[0].length < 80 ? jobLines[0] : '');
   const company: string =
     real(lettersData?.meta?.companyName) || jobDescriptionText.match(/^\s*Company:\s*(.+)$/im)?.[1]?.trim() || '';
+  const resumeFirstLine = resumeText.split('\n')[0]?.trim() || '';
   const name: string =
-    real(lettersData?.meta?.applicantName) || currentUser?.name || resumeText.split('\n')[0]?.trim() || '';
+    real(lettersData?.meta?.applicantName) ||
+    (looksLikeName(resumeFirstLine) ? resumeFirstLine : '') ||
+    currentUser?.name ||
+    '';
+  const contact = contactDetails(resumeText);
   const fileBase = (name || 'Application').replace(/\s+/g, '_');
 
   const [session, setSession] = useState<GoogleSession | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [to, setTo] = useState(() => firstEmail(jobDescriptionText));
-  const [subject, setSubject] = useState(() =>
-    [role ? `Application for ${role}` : 'Job application', name].filter(Boolean).join(' – ')
-  );
-  const [body, setBody] = useState(
-    () =>
-      `Dear Hiring Manager,\n\nPlease find attached my resume${lettersData ? ' and cover letter' : ''} for the ${
-        role || 'advertised'
-      } position${company ? ` at ${company}` : ''}.\n\nI would welcome the chance to discuss how I can contribute to your team. Thank you for your time and consideration.\n\nKind regards,\n${name}`
-  );
+  // null = use the suggested text, which follows the attachments chosen below
+  const [customSubject, setCustomSubject] = useState<string | null>(null);
+  const [customBody, setCustomBody] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<AttachmentId, boolean>>({
     tailored: !!rewriteData,
     original: !rewriteData && !!resumeText.trim(),
@@ -105,6 +159,17 @@ export const ApplyTab = ({
   ];
 
   const chosen = available.filter((a) => a.ready && selected[a.id]);
+
+  const subject = customSubject ?? formalSubject(role, name);
+  const body =
+    customBody ??
+    formalBody({
+      role,
+      company,
+      name,
+      contact,
+      documents: chosen.map((a) => a.id)
+    });
 
   const textOf: Record<AttachmentId, () => string> = {
     tailored: () => rewriteData?.rewrittenMarkdown || '',
@@ -147,22 +212,22 @@ export const ApplyTab = ({
         tailored: async () => ({
           filename: `${fileBase}_Resume.docx`,
           mimeType: DOCX,
-          data: await toDocx(`${name || 'Resume'}`, rewriteData.rewrittenMarkdown)
+          data: await toDocx('tailored resume', rewriteData.rewrittenMarkdown)
         }),
         original: async () => ({
           filename: chosen.some((c) => c.id === 'tailored') ? `${fileBase}_Resume_Original.docx` : `${fileBase}_Resume.docx`,
           mimeType: DOCX,
-          data: await toDocx(`${name || 'Resume'}`, resumeText)
+          data: await toDocx('resume', resumeText)
         }),
         cover: async () => ({
           filename: `${fileBase}_Cover_Letter.docx`,
           mimeType: DOCX,
-          data: await toDocx('Cover Letter', lettersData.coverLetter)
+          data: await toDocx('cover letter', lettersData.coverLetter)
         }),
         application: async () => ({
           filename: `${fileBase}_Application_Letter.docx`,
           mimeType: DOCX,
-          data: await toDocx('Application Letter', lettersData.applicationLetter)
+          data: await toDocx('application letter', lettersData.applicationLetter)
         })
       };
 
@@ -276,7 +341,7 @@ export const ApplyTab = ({
               id="apply-subject"
               type="text"
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              onChange={(e) => setCustomSubject(e.target.value)}
               className="field"
             />
           </div>
@@ -288,18 +353,32 @@ export const ApplyTab = ({
             <textarea
               id="apply-body"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="field min-h-[220px] resize-y leading-relaxed"
+              onChange={(e) => setCustomBody(e.target.value)}
+              className="field min-h-[340px] resize-y leading-relaxed"
             />
-            {lettersData && (
-              <button
-                type="button"
-                onClick={() => setBody(lettersData.coverLetter)}
-                className="text-[13px] text-accent font-medium hover:underline mt-1.5"
-              >
-                Use the cover letter as the message
-              </button>
-            )}
+            <div className="flex flex-wrap gap-x-5 gap-y-1 mt-1.5">
+              {(customBody !== null || customSubject !== null) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomBody(null);
+                    setCustomSubject(null);
+                  }}
+                  className="text-[13px] text-accent font-medium hover:underline"
+                >
+                  Restore the formal wording
+                </button>
+              )}
+              {lettersData && real(lettersData.coverLetter) && (
+                <button
+                  type="button"
+                  onClick={() => setCustomBody(lettersData.coverLetter)}
+                  className="text-[13px] text-accent font-medium hover:underline"
+                >
+                  Use the cover letter as the message
+                </button>
+              )}
+            </div>
           </div>
 
           <fieldset>

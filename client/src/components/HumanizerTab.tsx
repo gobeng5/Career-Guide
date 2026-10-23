@@ -119,7 +119,7 @@ export const HumanizerTab = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: 'Humanized Document',
+          title: '',
           content: result.humanized,
           filename: 'Humanized_Document.docx'
         })

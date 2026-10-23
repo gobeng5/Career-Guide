@@ -50,7 +50,7 @@ export const ResumeRewriterTab = ({ rewriteData, isLoading, hasJobDescription }:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: `Tailored Resume - ${rewriteData.targetRole}`,
+          title: '',
           content: rewriteData.rewrittenMarkdown,
           filename: `Resume_${rewriteData.targetRole.replace(/\s+/g, '_')}_XYZ.docx`
         })

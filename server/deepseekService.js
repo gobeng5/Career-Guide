@@ -191,16 +191,26 @@ Tailor the resume to maximize ATS match and rewrite experience into Google XYZ f
  */
 export async function deepseekGenerateLetters(resumeText, jobDescriptionText, options = {}, apiKey, model = 'deepseek-chat') {
   const tone = options.tone || 'confident';
-  const applicantName = options.applicantName || 'Candidate';
-  const companyName = options.companyName || 'Hiring Organization';
-  const jobTitle = options.jobTitle || 'Target Role';
+  const notGiven = 'not given: take it from the job description or resume, or write around it';
+  const applicantName = options.applicantName || notGiven;
+  const companyName = options.companyName || notGiven;
+  const jobTitle = options.jobTitle || notGiven;
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  const systemPrompt = `You are an Executive Career Coach and Professional Ghostwriter.
-You will write TWO distinct documents for the applicant:
-1. Cover Letter: A compelling narrative showing passion, company alignment, and 2-3 specific Google XYZ accomplishments.
-2. Formal Application Letter (Letter of Intent): A structured formal corporate/institutional job application letter with traditional business letter formatting.
+  const systemPrompt = `You are a professional writer of formal job application correspondence.
+You will write TWO distinct documents for the applicant, both as formal business letters:
+1. Cover Letter: explains why the applicant suits this specific role and organisation, featuring 2-3 of their strongest accomplishments.
+2. Formal Application Letter: a concise, traditional letter formally applying for the position and referring to the enclosed curriculum vitae.
 
-Tone style: ${tone} (e.g. confident, tech-focused, executive, or formal).
+Rules for both letters:
+- Formal, professional register throughout. ${tone === 'formal' ? 'Traditional and reserved.' : `Tone: ${tone}, but always formal.`} No slang, exclamation marks, clichés or hype.
+- Standard business letter layout in plain text: applicant's name and contact details (only those that appear in the resume), the date (${today}), the recipient block (Hiring Manager, organisation name), a subject line "Re: Application for the Position of <job title>", the salutation "Dear Hiring Manager,", the body paragraphs, and the close "Yours faithfully," followed by a blank line and the applicant's full name.
+- Separate blocks and paragraphs with one blank line. No markdown, no bullet symbols, no bold.
+- Use only facts found in the resume. Never invent employers, dates, figures, metrics or achievements.
+- Never output placeholders or bracketed text such as [Company] or [Phone Number]. If a detail is unknown, leave it out or phrase the sentence without it.
+- Do not mention "XYZ", "Google's formula" or any resume-writing method.
+- Cover letter: 250-350 words. Application letter: 180-260 words.
+
 Output strictly valid JSON with this exact structure:
 {
   "meta": {
@@ -228,7 +238,7 @@ Job Description:
 ${jobDescriptionText}
 ---
 
-Generate both high-caliber letters. Output strictly valid JSON.`;
+Write both letters following every rule. In "meta", give the real applicant name, organisation and job title you used (empty string if unknown). Output strictly valid JSON.`;
 
   const response = await callDeepSeek({
     apiKey,
@@ -237,7 +247,7 @@ Generate both high-caliber letters. Output strictly valid JSON.`;
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
     ],
-    temperature: 0.7,
+    temperature: 0.4,
     jsonMode: true
   });
 

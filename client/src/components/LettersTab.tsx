@@ -59,7 +59,7 @@ export const LettersTab = ({ lettersData, isLoading, onGenerate, hasResume }: Le
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: activeTitle,
+          title: '',
           content: activeContent,
           filename: fileName
         })
