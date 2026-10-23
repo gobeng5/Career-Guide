@@ -6,6 +6,7 @@ import { ResumeScorerTab } from './components/ResumeScorerTab';
 import { ResumeRewriterTab } from './components/ResumeRewriterTab';
 import { LettersTab } from './components/LettersTab';
 import { HumanizerTab } from './components/HumanizerTab';
+import { ApplyTab } from './components/ApplyTab';
 import { XYZModal } from './components/XYZModal';
 import { Sidebar, type ActiveTab } from './components/Sidebar';
 import { LoginPage, type AuthUser } from './components/LoginPage';
@@ -203,6 +204,10 @@ export function App() {
       title: 'Cover letters',
       subtitle: 'Write a cover letter and a formal application letter from your resume and the job posting.'
     },
+    apply: {
+      title: 'Send application',
+      subtitle: 'Email your resume and cover letter to the employer from your own Gmail account.'
+    },
     humanizer: {
       title: 'Humanizer',
       subtitle: 'Rewrite stiff, AI-sounding text so it reads the way a person writes.'
@@ -267,7 +272,7 @@ export function App() {
             <h1 className="text-2xl font-semibold tracking-tight text-ink">{meta.title}</h1>
             <p className="text-[14px] text-muted mt-1 max-w-[62ch]">{meta.subtitle}</p>
           </div>
-          {activeTab !== 'humanizer' && (
+          {activeTab !== 'humanizer' && activeTab !== 'apply' && (
             <div className="flex items-center gap-2 shrink-0">
               {(resumeText || jobDescriptionText) && (
                 <button onClick={handleReset} className="btn btn-ghost btn-sm">
@@ -281,7 +286,7 @@ export function App() {
           )}
         </div>
 
-        {activeTab !== 'humanizer' && (
+        {activeTab !== 'humanizer' && activeTab !== 'apply' && (
           <section className="panel" aria-label="Your documents">
             <div className="flex items-center justify-between px-5 sm:px-6 h-12 border-b border-line">
               <h2 className="text-[13.5px] font-medium text-ink">Your documents</h2>
@@ -313,11 +318,12 @@ export function App() {
                 />
                 <FileUploadBox
                   label="Job posting"
-                  sublabel="Optional, but needed for keyword matching"
+                  sublabel="Optional, for keyword matching"
                   value={jobDescriptionText}
                   onChange={setJobDescriptionText}
-                  placeholder="Paste the job description you’re applying for."
+                  placeholder="Paste the job description you’re applying for, or import it from a link."
                   minHeight="min-h-[180px]"
+                  allowUrl
                 />
               </div>
             )}
@@ -358,6 +364,17 @@ export function App() {
             isLoading={isLettersLoading}
             onGenerate={handleGenerateLetters}
             hasResume={hasResume}
+          />
+        )}
+
+        {activeTab === 'apply' && (
+          <ApplyTab
+            resumeText={resumeText}
+            jobDescriptionText={jobDescriptionText}
+            rewriteData={rewriteData}
+            lettersData={lettersData}
+            currentUser={currentUser}
+            onGoTo={setActiveTab}
           />
         )}
 

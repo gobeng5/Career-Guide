@@ -11,6 +11,7 @@ import { rewriteResume } from './resumeRewriter.js';
 import { generateApplicationDocuments } from './letterEngine.js';
 import { humanizeText, detectAI } from './humanizerEngine.js';
 import { createDocxBuffer } from './exportService.js';
+import { importJobFromUrl } from './jobUrlImporter.js';
 import {
   callDeepSeek,
   deepseekScoreResume,
@@ -168,6 +169,20 @@ app.post('/api/parse-document', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('File parsing error:', error);
     res.status(500).json({ error: error.message || 'Failed to parse file.' });
+  }
+});
+
+// 1b. Import a Job Description from a Posting URL
+app.post('/api/import-job-url', async (req, res) => {
+  try {
+    const result = await importJobFromUrl(req.body?.url);
+    res.json(result);
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error('Job URL import error:', error);
+    res.status(500).json({ error: 'Couldn’t import that link. Copy the job description and paste it instead.' });
   }
 });
 

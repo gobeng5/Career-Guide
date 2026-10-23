@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react';
-import { Upload, FileText, X, Loader2 } from 'lucide-react';
+import { Upload, FileText, X, Loader2, Link2 } from 'lucide-react';
 
 interface FileUploadBoxProps {
   label: string;
@@ -9,6 +9,8 @@ interface FileUploadBoxProps {
   placeholder: string;
   accept?: string;
   minHeight?: string;
+  /** Show an "Import from link" option that pulls the text from a job posting URL */
+  allowUrl?: boolean;
 }
 
 export const FileUploadBox = ({
@@ -18,8 +20,12 @@ export const FileUploadBox = ({
   onChange,
   placeholder,
   accept = '.pdf,.docx,.doc,.txt,.md',
-  minHeight = 'min-h-[170px]'
+  minHeight = 'min-h-[170px]',
+  allowUrl = false
 }: FileUploadBoxProps) => {
+  const [isUrlOpen, setIsUrlOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -69,6 +75,35 @@ export const FileUploadBox = ({
     }
   };
 
+  const handleUrlImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+
+    setIsImporting(true);
+    setUploadError(null);
+
+    try {
+      const response = await fetch('/api/import-job-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Couldn’t import that link. Copy the job description and paste it instead.');
+      }
+
+      onChange(data.text);
+      setFileName(new URL(data.url).hostname.replace(/^www\./, ''));
+      setIsUrlOpen(false);
+      setUrl('');
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const clearContent = () => {
     onChange('');
     setFileName(null);
@@ -90,6 +125,19 @@ export const FileUploadBox = ({
           {value && (
             <button onClick={clearContent} type="button" className="btn btn-ghost btn-sm">
               Clear
+            </button>
+          )}
+          {allowUrl && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsUrlOpen(!isUrlOpen);
+                setUploadError(null);
+              }}
+              aria-expanded={isUrlOpen}
+              className="btn btn-secondary btn-sm"
+            >
+              <Link2 className="w-3.5 h-3.5" /> From link
             </button>
           )}
           <input
@@ -119,6 +167,29 @@ export const FileUploadBox = ({
           </button>
         </div>
       </div>
+
+      {isUrlOpen && (
+        <form onSubmit={handleUrlImport} className="flex gap-2 mb-2">
+          <label htmlFor={`${textareaId}-url`} className="sr-only">
+            Job posting link
+          </label>
+          <input
+            id={`${textareaId}-url`}
+            type="url"
+            required
+            autoFocus
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.linkedin.com/jobs/view/…"
+            disabled={isImporting}
+            className="field !h-[30px] !py-0 text-[13px]"
+          />
+          <button type="submit" disabled={isImporting || !url.trim()} className="btn btn-primary btn-sm">
+            {isImporting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {isImporting ? 'Importing' : 'Import'}
+          </button>
+        </form>
+      )}
 
       <div
         onDragOver={(e) => {
@@ -154,10 +225,14 @@ export const FileUploadBox = ({
         )}
       </div>
 
-      {uploadError && <p className="text-xs text-bad mt-2">{uploadError}</p>}
+      {uploadError && (
+        <p role="alert" className="text-xs text-bad mt-2">
+          {uploadError}
+        </p>
+      )}
 
-      <div className="flex items-center justify-between text-xs text-subtle mt-2">
-        <span>PDF, DOCX or TXT, or paste text</span>
+      <div className="flex items-center justify-between gap-3 text-xs text-subtle mt-2">
+        <span>{allowUrl ? 'Paste text, upload PDF, DOCX or TXT, or import from a link' : 'PDF, DOCX or TXT, or paste text'}</span>
         <span className="tabular-nums">{wordCount.toLocaleString()} words</span>
       </div>
     </div>
