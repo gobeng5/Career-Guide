@@ -2,6 +2,7 @@ import dns from 'dns/promises';
 import http from 'http';
 import https from 'https';
 import net from 'net';
+import { pipeline, Writable } from 'stream';
 import zlib from 'zlib';
 
 // Imports a job description from a public job posting URL.
@@ -116,6 +117,7 @@ function assertPublicUrl(rawUrl) {
 }
 
 const TIMED_OUT = 'The website took too long to respond. Try again, or paste the text instead.';
+const TOO_LARGE = 'That page is too large to import.';
 const UNREACHABLE = 'Couldn’t reach that website. Check the link, or paste the text instead.';
 
 // One GET request, connecting only through safeLookup. Resolves with status,
@@ -143,40 +145,54 @@ function getOnce(url, deadline) {
         // Only read bodies we will actually use
         if (isRedirect || status >= 400 || (type && !/html|xml|text\/plain/i.test(type))) {
           res.resume();
-          return resolve({ status, headers: res.headers, body: null });
+          return finish(resolve, { status, headers: res.headers, body: null });
         }
         if (Number(res.headers['content-length'] || 0) > MAX_BYTES) {
-          res.destroy();
-          return reject(new ImportError('That page is too large to import.', 422));
+          return fail(new ImportError(TOO_LARGE, 422));
         }
 
         const encoding = String(res.headers['content-encoding'] || '').toLowerCase();
-        const stream =
-          encoding === 'gzip' ? res.pipe(zlib.createGunzip())
-          : encoding === 'deflate' ? res.pipe(zlib.createInflate())
-          : encoding === 'br' ? res.pipe(zlib.createBrotliDecompress())
-          : res;
+        const decoder =
+          encoding === 'gzip' ? zlib.createGunzip()
+          : encoding === 'deflate' ? zlib.createInflate()
+          : encoding === 'br' ? zlib.createBrotliDecompress()
+          : null;
 
+        // The cap applies after decompression, so a small compressed bomb can't blow up memory
         const chunks = [];
         let total = 0;
-        stream.on('data', (chunk) => {
-          total += chunk.length;
-          if (total > MAX_BYTES) {
-            res.destroy();
-            stream.destroy();
-            reject(new ImportError('That page is too large to import.', 422));
-            return;
+        const sink = new Writable({
+          write(chunk, _encoding, done) {
+            total += chunk.length;
+            if (total > MAX_BYTES) return done(new ImportError(TOO_LARGE, 422));
+            chunks.push(chunk);
+            done();
           }
-          chunks.push(chunk);
         });
-        stream.on('end', () => resolve({ status, headers: res.headers, body: Buffer.concat(chunks).toString('utf-8') }));
-        stream.on('error', () => reject(new ImportError(UNREACHABLE, 502)));
+
+        // pipeline tears down every stage on error, abort or premature close
+        pipeline(...(decoder ? [res, decoder, sink] : [res, sink]), (err) => {
+          if (err) return fail(err instanceof ImportError ? err : new ImportError(UNREACHABLE, 502));
+          finish(resolve, { status, headers: res.headers, body: Buffer.concat(chunks).toString('utf-8') });
+        });
       }
     );
 
-    const timer = setTimeout(() => req.destroy(new ImportError(TIMED_OUT, 504)), Math.max(0, deadline - Date.now()));
-    req.on('close', () => clearTimeout(timer));
-    req.on('error', (err) => reject(err instanceof ImportError ? err : new ImportError(UNREACHABLE, 502)));
+    let settled = false;
+    function finish(settle, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      settle(value);
+    }
+    function fail(err) {
+      req.destroy();
+      finish(reject, err);
+    }
+
+    // One deadline for the whole exchange: it rejects directly, whatever stage is stalled
+    const timer = setTimeout(() => fail(new ImportError(TIMED_OUT, 504)), Math.max(0, deadline - Date.now()));
+    req.on('error', (err) => fail(err instanceof ImportError ? err : new ImportError(UNREACHABLE, 502)));
   });
 }
 
@@ -229,17 +245,135 @@ function decodeEntities(text) {
   });
 }
 
-export function htmlToText(html) {
-  return decodeEntities(
-    html
-      .replace(/<(script|style|noscript|svg|template|iframe|head)[\s\S]*?<\/\1>/gi, ' ')
-      .replace(/<!--[\s\S]*?-->/g, ' ')
-      .replace(/<li[^>]*>/gi, '\n- ')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/(p|div|section|article|li|ul|ol|h[1-6]|tr|table|header|footer|blockquote)>/gi, '\n')
-      .replace(/<(p|div|section|article|h[1-6]|tr|table|blockquote)[^>]*>/gi, '\n')
-      .replace(/<[^>]+>/g, ' ')
-  )
+// --- Linear-time HTML scanning ---
+// Page HTML comes from arbitrary websites, so it is never fed to backtracking
+// regexes (malformed input like thousands of unclosed "<script" made those
+// quadratic). This scanner only moves forward with indexOf.
+
+const RAW_TEXT_TAGS = new Set(['script', 'style', 'textarea', 'title', 'noscript', 'template', 'iframe', 'xmp']);
+
+const isLetter = (code) => (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+
+function* scanHtml(html) {
+  const lower = html.toLowerCase();
+  const n = html.length;
+  let i = 0; // where unconsumed text starts
+  let search = 0; // where to look for the next "<"
+  let nextGt = -1;
+
+  while (i < n) {
+    const lt = html.indexOf('<', search);
+    if (lt === -1) {
+      yield { text: html.slice(i) };
+      return;
+    }
+
+    const closing = html.charCodeAt(lt + 1) === 47; // '/'
+    let p = closing ? lt + 2 : lt + 1;
+    const isComment = html.startsWith('<!--', lt);
+    const isDeclaration = !isComment && (html[lt + 1] === '!' || html[lt + 1] === '?');
+
+    if (!isComment && !isDeclaration && !isLetter(html.charCodeAt(p))) {
+      // A literal "<" in text: keep it as part of the text run
+      search = lt + 1;
+      continue;
+    }
+
+    if (lt > i) yield { text: html.slice(i, lt) };
+
+    if (isComment || isDeclaration) {
+      const end = isComment ? html.indexOf('-->', lt + 4) : html.indexOf('>', lt);
+      if (end === -1) return;
+      i = search = end + (isComment ? 3 : 1);
+      continue;
+    }
+
+    if (nextGt <= lt) nextGt = html.indexOf('>', lt);
+    if (nextGt === -1) return;
+    const gt = nextGt;
+
+    const nameStart = p;
+    while (p < gt && (isLetter(html.charCodeAt(p)) || /[0-9-]/.test(html[p]))) p++;
+    const name = lower.slice(nameStart, p);
+    const attrs = html.slice(p, gt);
+
+    if (!closing && RAW_TEXT_TAGS.has(name)) {
+      // Content runs to the matching close tag (or the end of the page)
+      const close = lower.indexOf(`</${name}`, gt + 1);
+      const contentEnd = close === -1 ? n : close;
+      yield { tag: name, attrs, closing: false, content: html.slice(gt + 1, contentEnd) };
+      if (close === -1) return;
+      const closeGt = html.indexOf('>', close);
+      if (closeGt === -1) return;
+      i = search = closeGt + 1;
+      continue;
+    }
+
+    yield { tag: name, attrs, closing };
+    i = search = gt + 1;
+  }
+}
+
+const getAttr = (attrs, name) => {
+  const lowerAttrs = attrs.toLowerCase();
+  let from = 0;
+  for (;;) {
+    const at = lowerAttrs.indexOf(name, from);
+    if (at === -1) return null;
+    from = at + name.length;
+    if (at > 0 && !/[\s"'/]/.test(attrs[at - 1])) continue;
+    let p = from;
+    while (/\s/.test(attrs[p] || '')) p++;
+    if (attrs[p] !== '=') continue;
+    p++;
+    while (/\s/.test(attrs[p] || '')) p++;
+    const quote = attrs[p];
+    if (quote === '"' || quote === "'") {
+      const end = attrs.indexOf(quote, p + 1);
+      return end === -1 ? null : attrs.slice(p + 1, end);
+    }
+    const end = attrs.slice(p).search(/[\s>]/);
+    return end === -1 ? attrs.slice(p) : attrs.slice(p, p + end);
+  }
+};
+
+const SKIP_TAGS = new Set(['script', 'style', 'noscript', 'svg', 'template', 'iframe', 'head', 'textarea', 'title']);
+const BLOCK_TAGS = new Set([
+  'p', 'div', 'section', 'article', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'tr', 'table', 'header', 'footer', 'blockquote', 'main', 'aside', 'nav', 'dl', 'dt', 'dd'
+]);
+
+export function htmlToText(html, extraSkip = []) {
+  const skip = new Set([...SKIP_TAGS, ...extraSkip]);
+  const out = [];
+  let skipping = null; // name of the non-raw element being skipped (e.g. nav), with depth
+  let depth = 0;
+
+  for (const token of scanHtml(html)) {
+    if (skipping) {
+      if (token.tag === skipping) depth += token.closing ? -1 : 1;
+      if (depth === 0) skipping = null;
+      continue;
+    }
+    if (token.text !== undefined) {
+      out.push(token.text);
+      continue;
+    }
+    const { tag, closing } = token;
+    if (skip.has(tag)) {
+      if (!closing && token.content === undefined) {
+        skipping = tag;
+        depth = 1;
+      }
+      continue;
+    }
+    if (tag === 'li') out.push(closing ? '\n' : '\n- ');
+    else if (tag === 'br') out.push('\n');
+    else if (BLOCK_TAGS.has(tag)) out.push('\n');
+    else out.push(' ');
+  }
+
+  return decodeEntities(out.join(''))
     .replace(/[ \t ]+/g, ' ')
     .replace(/ *\n */g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -263,8 +397,10 @@ function findJobPosting(node) {
 }
 
 function extractJobPosting(html) {
-  const blocks = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-  for (const [, json] of blocks) {
+  for (const token of scanHtml(html)) {
+    if (token.tag !== 'script' || token.content === undefined) continue;
+    if (!/^\s*application\/ld\+json\s*$/i.test(getAttr(token.attrs, 'type') || '')) continue;
+    const json = token.content;
     try {
       const posting = findJobPosting(JSON.parse(json.trim()));
       if (posting?.description) return posting;
@@ -313,18 +449,35 @@ function postingToText(posting) {
 }
 
 function pageTitle(html) {
-  const og = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
-  const title = og?.[1] || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '';
-  return decodeEntities(title).replace(/\s+/g, ' ').trim();
+  let ogTitle = '';
+  let title = '';
+  for (const token of scanHtml(html)) {
+    if (token.tag === 'meta' && !ogTitle && (getAttr(token.attrs, 'property') || '').toLowerCase() === 'og:title') {
+      ogTitle = getAttr(token.attrs, 'content') || '';
+    } else if (token.tag === 'title' && token.content !== undefined && !title) {
+      title = token.content;
+    } else if (token.tag === 'body') {
+      break;
+    }
+  }
+  return decodeEntities(ogTitle || title).replace(/\s+/g, ' ').trim();
+}
+
+// The first <main>, else <article>, else <body>: located with indexOf only
+function mainRegion(html) {
+  const lower = html.toLowerCase();
+  for (const tag of ['main', 'article']) {
+    const start = lower.indexOf(`<${tag}`);
+    if (start === -1) continue;
+    const end = lower.indexOf(`</${tag}`, start);
+    if (end !== -1) return html.slice(start, end);
+  }
+  const body = lower.indexOf('<body');
+  return body === -1 ? html : html.slice(body);
 }
 
 function mainContent(html) {
-  const main =
-    html.match(/<main[\s\S]*?<\/main>/i)?.[0] ||
-    html.match(/<article[\s\S]*?<\/article>/i)?.[0] ||
-    html.match(/<body[\s\S]*<\/body>/i)?.[0] ||
-    html;
-  return htmlToText(main.replace(/<(nav|header|footer|aside|form)[\s\S]*?<\/\1>/gi, ' '));
+  return htmlToText(mainRegion(html), ['nav', 'header', 'footer', 'aside', 'form']);
 }
 
 export async function importJobFromUrl(rawUrl) {
