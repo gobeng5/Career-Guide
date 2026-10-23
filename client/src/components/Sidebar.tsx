@@ -1,8 +1,8 @@
-import { Target, FileCheck, Mail, PenLine, BookOpen, FileText, X, LogOut, LogIn } from 'lucide-react';
+import { Target, FileCheck, Mail, PenLine, Send, BookOpen, FileText, X, LogOut, LogIn } from 'lucide-react';
 import type { AuthUser } from './LoginPage';
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher';
 
-export type ActiveTab = 'scorer' | 'rewriter' | 'letters' | 'humanizer';
+export type ActiveTab = 'scorer' | 'rewriter' | 'letters' | 'apply' | 'humanizer';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -49,6 +49,7 @@ export const Sidebar = ({
       badge: rewriteData ? `${rewriteData.metrics.afterAtsScore}%` : null
     },
     { id: 'letters' as ActiveTab, label: 'Cover letters', icon: Mail, badge: null },
+    { id: 'apply' as ActiveTab, label: 'Send application', icon: Send, badge: null },
     { id: 'humanizer' as ActiveTab, label: 'Humanizer', icon: PenLine, badge: null }
   ];
 
