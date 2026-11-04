@@ -7,6 +7,7 @@ import { ResumeRewriterTab } from './components/ResumeRewriterTab';
 import { LettersTab } from './components/LettersTab';
 import { HumanizerTab } from './components/HumanizerTab';
 import { ApplyTab } from './components/ApplyTab';
+import { FindJobsTab, type FoundJob, type JobSearchResult } from './components/FindJobsTab';
 import { XYZModal } from './components/XYZModal';
 import { Sidebar, type ActiveTab } from './components/Sidebar';
 import { LoginPage, type AuthUser } from './components/LoginPage';
@@ -69,6 +70,20 @@ export function App() {
   const [scoreData, setScoreData] = useState<any | null>(null);
   const [rewriteData, setRewriteData] = useState<any | null>(null);
   const [lettersData, setLettersData] = useState<any | null>(null);
+  const [jobSearch, setJobSearch] = useState<JobSearchResult | null>(null);
+
+  // Picking a job from the search makes it the target: earlier tailoring and letters were for another job
+  const handleUseJob = (job: FoundJob) => {
+    const header = [job.title, job.company && `Company: ${job.company}`, job.location && `Location: ${job.location}`, `Posting: ${job.url}`]
+      .filter(Boolean)
+      .join('\n');
+    setJobDescriptionText(`${header}\n\n${job.description}`);
+    setRewriteData(null);
+    setLettersData(null);
+    setIsInputsCollapsed(false);
+    setActiveTab('rewriter');
+    window.scrollTo({ top: 0 });
+  };
 
   // Loading States
   const [isScoringLoading, setIsScoringLoading] = useState(false);
@@ -195,6 +210,10 @@ export function App() {
     scorer: {
       title: 'Resume score',
       subtitle: 'See how clearly each bullet states what you achieved, how it was measured, and how you did it.'
+    },
+    jobs: {
+      title: 'Find jobs',
+      subtitle: 'Search job boards for openings that suit your resume, in Ghana, abroad or remote.'
     },
     rewriter: {
       title: 'Tailor resume',
@@ -342,13 +361,24 @@ export function App() {
                   {primaryAction.busy ? primaryAction.busyLabel : primaryAction.label}
                 </button>
               ) : (
-                <p className="text-[13px] text-subtle">Set the letter details below.</p>
+                <p className="text-[13px] text-subtle">
+                  {activeTab === 'jobs' ? 'Choose where to search below.' : 'Set the letter details below.'}
+                </p>
               )}
             </div>
           </section>
         )}
 
         {activeTab === 'scorer' && <ResumeScorerTab scoreData={scoreData} isLoading={isScoringLoading} />}
+
+        {activeTab === 'jobs' && (
+          <FindJobsTab
+            resumeText={resumeText}
+            result={jobSearch}
+            onResult={setJobSearch}
+            onUseJob={handleUseJob}
+          />
+        )}
 
         {activeTab === 'rewriter' && (
           <ResumeRewriterTab

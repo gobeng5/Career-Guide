@@ -12,6 +12,7 @@ import { generateApplicationDocuments } from './letterEngine.js';
 import { humanizeText, detectAI } from './humanizerEngine.js';
 import { createDocxBuffer } from './exportService.js';
 import { importJobFromUrl } from './jobUrlImporter.js';
+import { findJobs, COUNTRIES } from './jobSearch.js';
 import {
   callDeepSeek,
   deepseekScoreResume,
@@ -183,6 +184,40 @@ app.post('/api/import-job-url', async (req, res) => {
     }
     console.error('Job URL import error:', error);
     res.status(500).json({ error: 'Couldn’t import that link. Copy the job description and paste it instead.' });
+  }
+});
+
+// 1c. Find job openings that suit the resume
+app.get('/api/job-countries', (req, res) => {
+  res.json({
+    countries: Object.entries(COUNTRIES).map(([code, c]) => ({ code, name: c.name })),
+    onSiteSearch: !!process.env.CAREERJET_API_KEY
+  });
+});
+
+app.post('/api/find-jobs', async (req, res) => {
+  try {
+    const { resumeText, countryCode, includeRemote } = req.body;
+    if (!resumeText || !resumeText.trim()) {
+      return res.status(400).json({ error: 'Add your resume first.' });
+    }
+    const { apiKey, model } = getDeepSeekConfig(req);
+    const result = await findJobs({
+      resumeText,
+      countryCode,
+      includeRemote: includeRemote !== false,
+      apiKey,
+      model,
+      // Careerjet requires the searching user's IP and browser user agent
+      user: {
+        ip: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(),
+        agent: req.headers['user-agent']
+      }
+    });
+    res.json(result);
+  } catch (error) {
+    console.error('Job search error:', error);
+    res.status(500).json({ error: 'The job search didn’t finish. Try again in a moment.' });
   }
 });
 

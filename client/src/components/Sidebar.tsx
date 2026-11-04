@@ -1,8 +1,8 @@
-import { Target, FileCheck, Mail, PenLine, Send, BookOpen, FileText, X, LogOut, LogIn } from 'lucide-react';
+import { Target, Search, FileCheck, Mail, PenLine, Send, BookOpen, FileText, X, LogOut, LogIn } from 'lucide-react';
 import type { AuthUser } from './LoginPage';
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher';
 
-export type ActiveTab = 'scorer' | 'rewriter' | 'letters' | 'apply' | 'humanizer';
+export type ActiveTab = 'scorer' | 'jobs' | 'rewriter' | 'letters' | 'apply' | 'humanizer';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -42,6 +42,7 @@ export const Sidebar = ({
       icon: Target,
       badge: scoreData ? `${scoreData.overallScore}` : null
     },
+    { id: 'jobs' as ActiveTab, label: 'Find jobs', icon: Search, badge: null },
     {
       id: 'rewriter' as ActiveTab,
       label: 'Tailor resume',
