@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Paperclip, Send, CheckCircle2 } from 'lucide-react';
+import { Loader2, Paperclip, Send, CheckCircle2, Download, ExternalLink } from 'lucide-react';
 import {
   GOOGLE_CLIENT_ID,
   buildMimeMessage,
@@ -12,6 +12,8 @@ import {
 } from '../lib/gmail';
 import type { ActiveTab } from './Sidebar';
 import type { AuthUser } from './LoginPage';
+import type { FoundJob } from './FindJobsTab';
+import { LoadingState } from './States';
 
 interface ApplyTabProps {
   resumeText: string;
@@ -20,6 +22,11 @@ interface ApplyTabProps {
   lettersData: any | null;
   currentUser: AuthUser | null;
   onGoTo: (tab: ActiveTab) => void;
+  /** Job chosen on Find jobs, if any: gives the employer's apply page */
+  targetJob?: FoundJob | null;
+  /** Set while "Prepare application" is tailoring the CV and writing the letters */
+  preparing?: { jobTitle: string; error: string | null } | null;
+  onRetryPrepare?: () => void;
 }
 
 type AttachmentId = 'tailored' | 'original' | 'cover' | 'application';
@@ -104,8 +111,16 @@ export const ApplyTab = ({
   rewriteData,
   lettersData,
   currentUser,
-  onGoTo
+  onGoTo,
+  targetJob = null,
+  preparing = null,
+  onRetryPrepare
 }: ApplyTabProps) => {
+  // Without an email address in the posting, the employer takes applications on its own site
+  const jobEmail = firstEmail(jobDescriptionText);
+  const applyOnSite = !!targetJob && !jobEmail;
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [downloading, setDownloading] = useState<AttachmentId | null>(null);
   const jobLines = jobDescriptionText.split('\n').map((l) => l.trim()).filter(Boolean);
   const role: string =
     real(rewriteData?.targetRole) ||
@@ -202,13 +217,7 @@ export const ApplyTab = ({
     setSession(null);
   };
 
-  const handleSend = async () => {
-    if (!session || !canSend) return;
-    setIsSending(true);
-    setError(null);
-
-    try {
-      const sources: Record<AttachmentId, () => Promise<Attachment>> = {
+  const attachmentSources: Record<AttachmentId, () => Promise<Attachment>> = {
         tailored: async () => ({
           filename: `${fileBase}_Resume.docx`,
           mimeType: DOCX,
@@ -231,7 +240,33 @@ export const ApplyTab = ({
         })
       };
 
-      const attachments = await Promise.all(chosen.map((a) => sources[a.id]()));
+  const handleDownload = async (id: AttachmentId) => {
+    setDownloading(id);
+    setError(null);
+    try {
+      const file = await attachmentSources[id]();
+      const url = URL.createObjectURL(file.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err: any) {
+      setError(err.message || 'The download didn’t start. Try again.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!session || !canSend) return;
+    setIsSending(true);
+    setError(null);
+
+    try {
+      const attachments = await Promise.all(chosen.map((a) => attachmentSources[a.id]()));
       const mime = await buildMimeMessage({ to: recipients.valid, subject, body, attachments });
       await sendGmail(session, mime);
       setSentTo(recipients.valid.join(', '));
@@ -242,6 +277,34 @@ export const ApplyTab = ({
       setIsSending(false);
     }
   };
+
+  if (preparing && !preparing.error) {
+    return (
+      <LoadingState
+        title={`Preparing your application for ${preparing.jobTitle}`}
+        detail="Tailoring your CV and writing your cover letter. This takes about half a minute."
+      />
+    );
+  }
+
+  if (preparing?.error) {
+    return (
+      <section className="panel px-6 py-10 text-center">
+        <p className="text-[15px] font-medium text-ink">Application not prepared</p>
+        <p className="text-[13.5px] text-muted mt-1 max-w-md mx-auto">{preparing.error}</p>
+        <div className="flex justify-center gap-2 mt-5">
+          <button onClick={() => onGoTo('rewriter')} className="btn btn-secondary">
+            Tailor step by step
+          </button>
+          {onRetryPrepare && (
+            <button onClick={onRetryPrepare} className="btn btn-primary">
+              Try again
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   if (sentTo) {
     return (
@@ -268,8 +331,71 @@ export const ApplyTab = ({
     );
   }
 
+  const packItems = available.filter((a) => a.ready && a.id !== 'original' && (a.id !== 'application' || selected.application));
+  if (!rewriteData && resumeText.trim()) packItems.unshift(available.find((a) => a.id === 'original')!);
+
+  const applicationPack = applyOnSite && targetJob && (
+    <section className="panel">
+      <div className="px-6 py-4 border-b border-line">
+        <h2 className="text-[15px] font-semibold text-ink">
+          Apply on{' '}
+          {targetJob.company ? `${targetJob.company}${/s$/i.test(targetJob.company) ? '’' : '’s'}` : 'the employer’s'}{' '}
+          website
+        </h2>
+        <p className="text-[13.5px] text-muted mt-0.5">
+          This posting has no email address, so applications go through the employer’s own form. Your documents are
+          ready to upload there.
+        </p>
+      </div>
+      <ol className="p-6 space-y-5">
+        <li>
+          <p className="text-[13.5px] font-medium text-ink">1. Download your documents</p>
+          <div className="flex flex-wrap gap-2 mt-2.5">
+            {packItems.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => handleDownload(a.id)}
+                disabled={downloading !== null}
+                className="btn btn-secondary btn-sm"
+              >
+                {downloading === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                {a.label} (.docx)
+              </button>
+            ))}
+          </div>
+        </li>
+        <li>
+          <p className="text-[13.5px] font-medium text-ink">2. Open the application page and upload them</p>
+          <p className="text-[13px] text-muted mt-0.5">
+            The cover letter text can also be pasted into a “cover letter” box if the form has one.
+          </p>
+          <a href={targetJob.url} target="_blank" rel="noopener" className="btn btn-primary btn-sm mt-2.5">
+            <ExternalLink className="w-3.5 h-3.5" /> Open application page
+          </a>
+        </li>
+      </ol>
+      <div className="px-6 py-3.5 border-t border-line bg-sunken rounded-b-lg flex flex-wrap items-center justify-between gap-3">
+        {error ? (
+          <p role="alert" className="text-[13px] text-bad">
+            {error}
+          </p>
+        ) : (
+          <p className="text-[13px] text-muted">Know the hiring manager’s email address?</p>
+        )}
+        <button onClick={() => setShowEmailForm(!showEmailForm)} className="btn btn-ghost btn-sm">
+          {showEmailForm ? 'Hide email' : 'Send by email instead'}
+        </button>
+      </div>
+    </section>
+  );
+
+  if (applyOnSite && !showEmailForm) {
+    return <div className="space-y-6">{applicationPack}</div>;
+  }
+
   return (
     <div className="space-y-6">
+      {applicationPack}
       <section className="panel px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {!GOOGLE_CLIENT_ID ? (
           <div>

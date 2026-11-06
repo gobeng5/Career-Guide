@@ -31,6 +31,7 @@ interface FindJobsTabProps {
   result: JobSearchResult | null;
   onResult: (result: JobSearchResult) => void;
   onUseJob: (job: FoundJob) => void;
+  onPrepare: (job: FoundJob) => void;
 }
 
 const SOURCE_SITES: Record<string, string> = {
@@ -54,7 +55,7 @@ function postedLabel(iso: string | null) {
 
 const matchTone = (match: number) => (match >= 75 ? 'good' : match >= 50 ? 'warn' : 'neutral');
 
-export const FindJobsTab = ({ resumeText, result, onResult, onUseJob }: FindJobsTabProps) => {
+export const FindJobsTab = ({ resumeText, result, onResult, onUseJob, onPrepare }: FindJobsTabProps) => {
   const [countries, setCountries] = useState<{ code: string; name: string }[]>([]);
   const [countryCode, setCountryCode] = useState('GH');
   const [includeRemote, setIncludeRemote] = useState(true);
@@ -232,8 +233,11 @@ export const FindJobsTab = ({ resumeText, result, onResult, onUseJob }: FindJobs
                       <a href={job.url} target="_blank" rel="noopener" className="btn btn-secondary btn-sm">
                         <ExternalLink className="w-3.5 h-3.5" /> View posting
                       </a>
-                      <button onClick={() => onUseJob(job)} className="btn btn-primary btn-sm">
-                        Apply with my resume
+                      <button onClick={() => onUseJob(job)} className="btn btn-ghost btn-sm">
+                        Tailor step by step
+                      </button>
+                      <button onClick={() => onPrepare(job)} disabled={!hasResume} className="btn btn-primary btn-sm">
+                        Prepare application
                       </button>
                     </div>
                   </div>

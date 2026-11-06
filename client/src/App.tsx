@@ -72,17 +72,67 @@ export function App() {
   const [lettersData, setLettersData] = useState<any | null>(null);
   const [jobSearch, setJobSearch] = useState<JobSearchResult | null>(null);
 
+  // The job picked from Find jobs, kept so Send application can link to its apply page
+  const [targetJob, setTargetJob] = useState<FoundJob | null>(null);
+  const [preparing, setPreparing] = useState<{ jobTitle: string; error: string | null } | null>(null);
+
   // Picking a job from the search makes it the target: earlier tailoring and letters were for another job
-  const handleUseJob = (job: FoundJob) => {
+  const selectJob = (job: FoundJob) => {
     const header = [job.title, job.company && `Company: ${job.company}`, job.location && `Location: ${job.location}`, `Posting: ${job.url}`]
       .filter(Boolean)
       .join('\n');
-    setJobDescriptionText(`${header}\n\n${job.description}`);
+    const description = `${header}\n\n${job.description}`;
+    setJobDescriptionText(description);
+    setTargetJob(job);
     setRewriteData(null);
     setLettersData(null);
+    setPreparing(null);
+    window.scrollTo({ top: 0 });
+    return description;
+  };
+
+  const handleUseJob = (job: FoundJob) => {
+    selectJob(job);
     setIsInputsCollapsed(false);
     setActiveTab('rewriter');
-    window.scrollTo({ top: 0 });
+  };
+
+  // Tailors the CV and writes the letters for one job in a single step, then opens Send application
+  const handlePrepareApplication = async (job: FoundJob) => {
+    if (!resumeText.trim()) return;
+    const description = selectJob(job);
+    setPreparing({ jobTitle: job.title, error: null });
+    setActiveTab('apply');
+
+    const post = async (url: string, body: object) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      return response.json();
+    };
+
+    try {
+      const [rewrite, letters] = await Promise.all([
+        post('/api/rewrite-resume', { resumeText, jobDescriptionText: description }),
+        post('/api/generate-letters', {
+          resumeText,
+          jobDescriptionText: description,
+          options: { tone: 'formal', jobTitle: job.title, companyName: job.company || undefined }
+        })
+      ]);
+      setRewriteData(rewrite);
+      setLettersData(letters);
+      setPreparing(null);
+    } catch (err) {
+      console.error('Prepare application error:', err);
+      setPreparing({
+        jobTitle: job.title,
+        error: 'Your application couldn’t be prepared. Try again, or tailor your CV and write the letters step by step.'
+      });
+    }
   };
 
   // Loading States
@@ -377,6 +427,7 @@ export function App() {
             result={jobSearch}
             onResult={setJobSearch}
             onUseJob={handleUseJob}
+            onPrepare={handlePrepareApplication}
           />
         )}
 
@@ -405,6 +456,9 @@ export function App() {
             lettersData={lettersData}
             currentUser={currentUser}
             onGoTo={setActiveTab}
+            targetJob={targetJob}
+            preparing={preparing}
+            onRetryPrepare={() => targetJob && handlePrepareApplication(targetJob)}
           />
         )}
 
